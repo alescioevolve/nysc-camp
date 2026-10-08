@@ -171,8 +171,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--green-2);background:v
       <p>Sign in to manage Camp Companion</p>
     </div>
     <div class="msg" id="lmsg" hidden></div>
-    <label class="f"><span>Full name</span><input type="text" id="lname" autocomplete="name" placeholder="e.g. Musa Adamu" required></label>
-    <label class="f"><span>Access code</span><div class="pw"><input type="password" id="lcode" autocomplete="current-password" spellcheck="false" placeholder="Paste your access code" required><button type="button" id="lshow">Show</button></div></label>
+    <label class="f"><span>Full name</span><input type="text" id="lname" name="username" autocomplete="username" autocapitalize="words" placeholder="e.g. Musa Adamu" required></label>
+    <label class="f"><span>Access code</span><div class="pw"><input type="password" id="lcode" name="password" autocomplete="current-password" spellcheck="false" placeholder="Paste your access code" required><button type="button" id="lshow">Show</button></div></label>
     <label class="check"><input type="checkbox" id="lkeep" checked> Keep me signed in on this phone</label>
     <button class="btn primary" type="submit" id="signin">Sign in</button>
     <p class="help">Don't have an access code? Contact the Camp Companion administrator.</p>
@@ -687,7 +687,14 @@ $("#lgform").addEventListener("submit", async e => {
   store.set("camp-admin-name", editor);
   if ($("#lkeep").checked) { store.set("camp-admin-token", token); sess.del("camp-admin-token"); }
   else { sess.set("camp-admin-token", token); store.del("camp-admin-token"); }
-  $("#lcode").value = ""; location.hash = "#dashboard"; route(); tab = "time"; render();
+  /* Ask Chrome to offer "Save password" (name + access code) */
+  try {
+    if (window.PasswordCredential && navigator.credentials) {
+      await navigator.credentials.store(new PasswordCredential({ id: name, password: code, name }));
+    }
+  } catch (err) {}
+  location.hash = "#dashboard"; route(); tab = "time"; render();
+  setTimeout(() => { $("#lcode").value = ""; }, 1500);   // clear only after the browser has seen the sign-in
 });
 
 /* ── Installable as its own "Camp Admin" icon ── */

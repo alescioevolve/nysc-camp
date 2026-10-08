@@ -1,6 +1,6 @@
 /* Offline support: everything is cached on first visit, so the app opens
    with no network. Bump VERSION whenever you change any file. */
-const VERSION = "camp-v9";
+const VERSION = "camp-v10";
 const FILES = [
   "./", "./index.html", "./data.js", "./pwa.js", "./manifest.webmanifest",
   "./v2/", "./v2/index.html", "./v2/manifest.webmanifest",
