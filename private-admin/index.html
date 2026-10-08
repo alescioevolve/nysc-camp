@@ -177,7 +177,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green-2);background:v
     <button class="btn primary" type="submit" id="signin">Sign in</button>
     <p class="help">Don't have an access code? Contact the Camp Companion administrator.</p>
     <div class="or"><span>or</span></div>
-    <a class="btn full" href="../" id="tocorps">Open the corps member app</a>
+    <a class="btn full" href="../app/" id="tocorps">Open the corps member app</a>
   </form>
   <p class="foot">Camp Companion · Batch C · Stream I<br>Built by Alescio · Exeli Digital</p>
 </section>
@@ -652,7 +652,7 @@ function setView(v){
   if (v === "corps") {
     $("#pvmode").querySelector('[value="draft"]').disabled = !changes().length;
     if (!changes().length) $("#pvmode").value = "live";
-    $("#pv").src = `../?preview=${$("#pvmode").value}&v=${Date.now()}`;
+    $("#pv").src = `../app/?preview=${$("#pvmode").value}&v=${Date.now()}`;
   }
   window.scrollTo({ top: 0 });
 }

@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A5C36">
+<meta name="description" content="Unofficial live companion for NYSC 2026 Batch C Stream I: what's happening now, what's next and today's menu. Works offline.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Camp Companion">
+<title>Camp Companion · NYSC 2026 Batch C</title>
+<script>try{var t=localStorage.getItem("camp-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preload" href="../fonts/inter-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/inter-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/inter-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="../icons/favicon.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+@font-face{font-family:Inter;src:url(../fonts/inter-400.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:Inter;src:url(../fonts/inter-500.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:Inter;src:url(../fonts/inter-600.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:Inter;src:url(../fonts/inter-700.woff2) format("woff2");font-weight:700;font-display:swap}
+
+/* Colour tokens. Every text colour passes WCAG AA (4.5:1) on the surface it sits on. */
+:root{
+  color-scheme:light;
+  --bg:#F6F4EE;--surface:#FFFFFF;--ink:#14231B;--muted:#535C55;--faint:#68716A;--line:#E2DED2;--rail:#D3CEC0;
+  --green:#0A5C36;--green-2:#0B6B3E;--green-soft:#E6F0EA;
+  --khaki:#6E531D;--khaki-soft:#F3ECDD;
+  --alert:#963B19;--alert-soft:#F8EAE2;
+  --on-green:#FFFFFF;--radius:20px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0C1310;--surface:#131C17;--ink:#EEF1EC;--muted:#A8B1A9;--faint:#879188;--line:#24302A;--rail:#33403A;
+    --green:#0F5E39;--green-2:#5BCB8E;--green-soft:#163024;
+    --khaki:#DCC28A;--khaki-soft:#29251A;
+    --alert:#F0A27C;--alert-soft:#33211A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0C1310;--surface:#131C17;--ink:#EEF1EC;--muted:#A8B1A9;--faint:#879188;--line:#24302A;--rail:#33403A;
+  --green:#0F5E39;--green-2:#5BCB8E;--green-soft:#163024;
+  --khaki:#DCC28A;--khaki-soft:#29251A;
+  --alert:#F0A27C;--alert-soft:#33211A;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.5 Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:env(safe-area-inset-bottom);transition:background-color .2s}
+.num{font-variant-numeric:tabular-nums}
+.stripe{height:4px;display:flex;padding-top:env(safe-area-inset-top);background:var(--green)}
+.stripe i{flex:1;background:var(--green)}
+.stripe i:nth-child(2){background:#fff}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 0}
+
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:20px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand img{width:42px;height:auto;flex:0 0 auto}
+.brand h2{font:700 16px/21px Inter,sans-serif;letter-spacing:-.01em}
+.brand p{font-size:13px;line-height:18px;color:var(--muted);margin-top:2px}
+.right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.clock{text-align:right;min-width:108px}
+.clock b{display:block;height:26px;font:700 20px/26px Inter,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap}
+.clock .ap{font-size:12px;font-weight:700;letter-spacing:.02em;margin-left:3px;color:var(--muted)}
+.clock small{display:block;height:18px;line-height:18px;margin-top:2px;font-size:12px;font-weight:500;color:var(--muted);white-space:nowrap}
+.theme{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
+.theme svg{width:20px;height:20px}
+.theme .sun{display:none}
+:root[data-theme="dark"] .theme .sun{display:block}
+:root[data-theme="dark"] .theme .moon-i{display:none}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .theme .sun{display:block}
+  :root:not([data-theme="light"]) .theme .moon-i{display:none}
+}
+.off{display:flex;width:max-content;align-items:center;gap:5px;margin-top:5px;height:24px;line-height:1;font-size:12px;font-weight:600;color:var(--green-2);background:var(--green-soft);padding:2px 9px 2px 8px;border-radius:99px}
+.off[hidden]{display:flex;visibility:hidden}
+.off.is-off{color:var(--khaki);background:var(--khaki-soft)}
+
+/* Day strip */
+.days{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 20px;padding:2px 16px 4px;scroll-snap-type:x proximity}
+.days::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;width:52px;min-height:56px;padding:8px 0;border:1px solid var(--line);background:var(--surface);border-radius:14px;text-align:center;cursor:pointer;color:var(--ink);font:inherit;scroll-snap-align:center;position:relative}
+.chip small{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.chip b{display:block;font:700 18px/1.3 Inter,sans-serif}
+.chip.past b,.chip.past small{color:var(--faint)}
+.chip.today::after{content:"";position:absolute;bottom:5px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--green-2)}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip.sel small,.chip.sel b{color:var(--bg)}
+
+/* Now card */
+.hero{background:var(--green);color:var(--on-green);border-radius:var(--radius);padding:22px 22px 20px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;border:1px solid rgba(255,255,255,.12)}
+.hero::after{content:"";position:absolute;right:-20px;top:-20px;width:120px;height:120px;border-radius:50%;border:1px solid rgba(255,255,255,.08)}
+.eyebrow{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#E3ECE7}
+.pulse{width:8px;height:8px;border-radius:50%;background:#8EF0B6;box-shadow:0 0 0 0 rgba(142,240,182,.6);animation:p 2s infinite}
+@keyframes p{70%{box-shadow:0 0 0 8px rgba(142,240,182,0)}100%{box-shadow:0 0 0 0 rgba(142,240,182,0)}}
+.hero h1{font:700 28px/1.15 Inter,sans-serif;letter-spacing:-.025em;margin:12px 0 8px;max-width:94%;position:relative}
+.when{font-size:15px;font-weight:500;color:#E3ECE7}
+.when .nt{display:block;margin-top:4px;color:#FFE7A8;font-weight:600;font-size:14px}
+.bar{height:5px;background:rgba(255,255,255,.2);border-radius:5px;margin:18px 0 14px;overflow:hidden}
+.bar i{display:block;height:100%;background:#fff;border-radius:5px;transition:width 1s linear}
+.hero-foot{display:flex;align-items:flex-end;justify-content:space-between}
+.big{font:700 40px/1 Inter,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#E3ECE7;margin-top:6px}
+.ends{font-size:14px;font-weight:500;color:#E3ECE7;text-align:right}
+.ends b{display:block;font-weight:700;color:#fff;font-size:16px}
+
+.alert{display:flex;gap:10px;align-items:center;background:var(--alert-soft);color:var(--alert);border-radius:14px;padding:13px 15px;margin-top:12px;font-size:15px;font-weight:600}
+.alert .dot{width:9px;height:9px;border-radius:50%;background:currentColor;flex:0 0 auto}
+.alert.meal{background:var(--khaki-soft);color:var(--khaki)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-top:12px}
+.k{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.k em{font-style:normal;color:var(--green-2);letter-spacing:0;text-transform:none;font-weight:700;font-size:13px}
+.next .t{font:700 19px/1.3 Inter,sans-serif;letter-spacing:-.01em;margin:8px 0 4px}
+.s{font-size:14px;color:var(--muted)}
+
+/* Install */
+.install{display:flex;align-items:center;gap:14px;border-color:var(--green-soft);background:linear-gradient(0deg,var(--green-soft),var(--surface))}
+.install[hidden]{display:none}
+.install img{width:36px;flex:0 0 auto}
+.install .tx{flex:1;min-width:0}
+.install b{display:block;font-weight:700;font-size:15px}
+.install .s{font-size:13.5px}
+.install .go{background:var(--green);color:#fff;border:0;border-radius:99px;min-height:44px;padding:0 18px;font:700 14px Inter,sans-serif;cursor:pointer}
+.install .go[hidden]{display:none}
+.install .x{background:none;border:0;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;width:44px;height:44px;margin:-10px -12px 0 0;align-self:flex-start}
+
+/* Sections */
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;margin:30px 4px 4px}
+.sec-h h3{font:700 20px/1.25 Inter,sans-serif;letter-spacing:-.015em}
+.sec-h button{background:none;border:0;color:var(--green-2);font:700 14px Inter,sans-serif;cursor:pointer;min-height:44px}
+.sec-h span{font-size:13px;font-weight:500;color:var(--muted)}
+
+.meal-r{display:grid;grid-template-columns:82px 1fr;gap:4px 12px;padding:14px 0;border-top:1px solid var(--line)}
+.meal-r:first-child{border-top:0;padding-top:4px}
+.meal-r:last-child{padding-bottom:0}
+.meal-r .lab{font-size:13px;color:var(--muted);padding-top:1px}
+.meal-r .lab b{display:block;color:var(--ink);font-weight:700;font-size:15px}
+.meal-r .food{font-size:16px;font-weight:500;line-height:1.4}
+.pill{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--khaki-soft);color:var(--khaki)}
+.pill.now{background:var(--green-soft);color:var(--green-2)}
+.pill.done{background:transparent;color:var(--faint);padding-left:0}
+
+/* Timeline */
+.tl{list-style:none;margin-top:4px}
+.tl li{display:grid;grid-template-columns:46px 14px 1fr;gap:0 12px;position:relative;padding:10px 0}
+.tl .tm{font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:2px;text-align:right}
+.tl .rail{position:relative;display:flex;justify-content:center}
+.tl .rail::before{content:"";position:absolute;top:-10px;bottom:-10px;width:2px;background:var(--rail)}
+.tl li:first-child .rail::before{top:10px}
+.tl li:last-child .rail::before{bottom:calc(100% - 10px)}
+.tl .nd{width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--surface);border:2px solid var(--faint);position:relative;z-index:1}
+.tl .ti{font-size:15.5px;font-weight:500;line-height:1.35}
+.tl .rg{font-size:13px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.tl .note{font-size:13px;font-weight:600;color:var(--khaki);margin-top:3px}
+.tl li.done .ti,.tl li.done .rg,.tl li.done .tm{color:var(--faint)}
+.tl li.done .ti{text-decoration:line-through;text-decoration-thickness:1px}
+.tl li.done .nd{background:var(--faint);border-color:var(--faint)}
+.tl li.cur{background:var(--green-soft);margin:0 -12px;padding:10px 12px;border-radius:12px}
+.tl li.cur .nd{background:var(--green-2);border-color:var(--green-2);box-shadow:0 0 0 4px var(--surface)}
+.tl li.cur .ti{font-weight:700;color:var(--green-2)}
+.tl li.cur .tm{color:var(--green-2)}
+.tl li.meal-i:not(.done) .nd{border-color:var(--khaki)}
+
+.lo{display:flex;align-items:center;justify-content:space-between}
+.lo .t{font:700 20px/1.2 Inter,sans-serif;margin-top:6px;font-variant-numeric:tabular-nums}
+.moon{width:38px;height:38px;border-radius:50%;box-shadow:inset -10px -4px 0 0 var(--ink);opacity:.85;transform:rotate(-20deg);flex:0 0 auto}
+
+.tm-list{list-style:none;margin-top:10px}
+.tm-list li{display:flex;gap:12px;padding:8px 0;font-size:15px;font-weight:500;border-top:1px solid var(--line)}
+.tm-list li:first-child{border-top:0}
+.tm-list li span{color:var(--muted);font-size:13px;font-weight:600;width:42px;flex:0 0 auto;padding-top:2px;font-variant-numeric:tabular-nums}
+.menu3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.menu3 div{background:var(--bg);border-radius:12px;padding:10px;font-size:13.5px;font-weight:500;line-height:1.35}
+.menu3 small{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+
+.empty{text-align:center;padding:36px 20px}
+.empty h1{font:700 28px/1.2 Inter,sans-serif;letter-spacing:-.02em;margin:10px 0 6px}
+
+/* Venue */
+.vn{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.vn svg{width:14px;height:14px;flex:0 0 auto}
+.hero .vn{color:#E3ECE7;font-size:14px}
+.tl li.done .vn{color:var(--faint)}
+
+/* Tonight + my match cards */
+.spot{display:flex;gap:14px;align-items:flex-start}
+.spot .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex:0 0 auto;background:var(--khaki-soft)}
+.spot.mine .ic{background:var(--green-soft)}
+.spot .body{flex:1;min-width:0}
+.spot .t{font:700 17px/1.3 Inter,sans-serif;margin:4px 0 2px}
+
+/* Fixtures */
+.pk{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+.pk select{appearance:none;-webkit-appearance:none;font:700 15px Inter,sans-serif;color:var(--ink);background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 12px center;border:1px solid var(--line);border-radius:12px;min-height:44px;padding:0 34px 0 14px}
+.mysum{font-size:13.5px;color:var(--muted);padding:12px 0 2px;line-height:1.5}
+.mysum b{color:var(--green-2)}
+.mysum span{display:block;color:var(--ink);font-weight:500;margin-top:4px}
+.fx{display:grid;grid-template-columns:46px 1fr;gap:0 12px;padding:12px 0;border-top:1px solid var(--line)}
+.pk+.fx,.mysum+.fx{border-top:0}
+.mysum{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:2px}
+.fx .tm{font-size:13px;font-weight:600;color:var(--muted);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums}
+.fx .sp{font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.fx .vs{font-size:15.5px;font-weight:600;margin-top:1px}
+.fx .vs i{font-style:normal;font-weight:500;color:var(--muted);margin:0 4px}
+.fx .fn{font-size:12.5px;font-weight:600;color:var(--khaki);margin-top:2px}
+.fx.mine{background:var(--green-soft);margin:0 -12px;padding:12px;border-radius:12px;border-top-color:transparent}
+.fx.mine .vs{color:var(--green-2);font-weight:700}
+.fx.past{opacity:.6}
+.fxnote{font-size:12.5px;color:var(--muted);margin-top:10px}
+/* Match cards */
+.mts{display:flex;flex-direction:column;gap:10px}
+.card .mts{margin-top:12px}
+section.card.mts{padding:12px}
+.mt{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface)}
+.mt.mine{border-color:var(--green-2);box-shadow:0 0 0 1px var(--green-2) inset}
+.mt-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.mt-h>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{flex:0 0 auto;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.st.ft{background:var(--bg);color:var(--muted)}
+.st.lv{background:var(--alert-soft);color:var(--alert)}
+.st.pd{background:var(--khaki-soft);color:var(--khaki)}
+.st.up{background:var(--green-soft);color:var(--green-2)}
+.mt-r{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;font-size:15.5px;font-weight:500}
+.mt-r+.mt-r{border-top:1px dashed var(--line)}
+.mt-r .nm small{display:block;font-size:11.5px;font-weight:500;color:var(--muted)}
+.mt-r .sc{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.mt-r.w{font-weight:700}
+.mt-r.w .sc{color:var(--green-2)}
+.mt-r.me .nm{color:var(--green-2);font-weight:700}
+.mt .fn{font-size:12.5px;font-weight:600;color:var(--khaki);margin-top:4px}
+.sp-link{font-size:14px;font-weight:700;color:var(--green-2);text-decoration:none}
+.sp-btn{display:flex;justify-content:center;align-items:center;min-height:46px;margin-top:12px;border-radius:12px;background:var(--green-soft);color:var(--green-2);font-weight:700;font-size:14.5px;text-decoration:none}
+.sp-card{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink);margin-top:30px}
+.sp-card>span{font-size:24px}
+.sp-card b{display:block;font-size:15.5px}
+.sp-card small{font-size:13px;color:var(--muted)}
+.sp-card i{margin-left:auto;font-style:normal;font-size:20px;color:var(--green-2)}
+.sp-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin:4px 0 12px}
+body.on-sports #install{display:none}
+.sp-top h2{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.sp-top span{display:block}
+.back{justify-self:start;white-space:nowrap;background:var(--surface);border:1px solid var(--line);border-radius:99px;min-height:40px;padding:0 14px;font:600 14px Inter,sans-serif;color:var(--ink);cursor:pointer}
+.seg{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 4px;padding:2px 16px 4px}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:0 0 auto;min-height:42px;padding:0 14px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font:600 14px Inter,sans-serif;color:var(--ink);cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#days[hidden],#live[hidden]{display:none}
+
+/* Announcements */
+.notice{border-left:4px solid var(--green-2)}
+.notice .t{font:700 17px/1.3 Inter,sans-serif;margin:6px 0 2px}
+.notice .nb{font-size:15px;line-height:1.5;color:var(--ink);margin-top:4px}
+.notice.urgent{border-left-color:var(--alert);background:var(--alert-soft)}
+.notice.urgent .k{color:var(--alert)}
+.fx .sc{font-size:13px;font-weight:700;color:var(--green-2);margin-top:2px}
+
+/* Feedback + footer */
+.fb{display:flex;align-items:center;gap:14px;margin-top:30px;padding:16px 18px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);color:var(--ink);text-decoration:none}
+.fb svg{width:28px;height:28px;color:#1FAF54;flex:0 0 auto}
+.fb span{font-size:14px;color:var(--muted)}
+.fb b{display:block;font-size:15px;font-weight:700;color:var(--ink)}
+footer{margin:28px 0 0;padding-bottom:110px;text-align:center;font-size:13px;color:var(--muted);line-height:1.65}
+footer b{color:var(--ink);font-weight:600}
+footer a{color:inherit;display:inline-block;padding:6px 0}
+footer .upd{margin-top:10px;font-size:12.5px;font-weight:500}
+footer .credit{margin-top:6px;font-size:13px}
+footer .credit a{color:var(--green-2);text-decoration:none;font-weight:700}
+.brand h2,.brand p,.off{white-space:nowrap}
+.brand>div{min-width:0}
+.brand h2,.brand p{overflow:hidden;text-overflow:ellipsis}
+@media (max-width:380px){
+  .brand{gap:9px}.brand img{width:34px}
+  .brand h2{font-size:15px}.brand p{font-size:12px}
+  .clock{min-width:94px}.clock b{font-size:17px;height:22px;line-height:22px}.clock .ap{font-size:11px}.clock small{font-size:11px}
+  .right{gap:8px}.theme{width:38px;height:38px}
+  .off{font-size:11px}
+}
+@media (min-width:480px){.hero h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="stripe"><i></i><i></i><i></i></div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <img src="../assets/nysc-logo.png" alt="NYSC logo" width="240" height="304">
+      <div>
+        <h2>Camp Companion</h2>
+        <p>Batch C · Stream I</p>
+        <span class="off" data-offline hidden></span>
+      </div>
+    </div>
+    <div class="right">
+      <div class="clock"><b id="clock">&nbsp;</b><small id="dayno">&nbsp;</small></div>
+      <button class="theme" id="theme" aria-label="Switch light or dark mode">
+        <svg class="moon-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="days" id="days" aria-label="Camp days"></nav>
+
+  <main id="live"></main>
+
+  <section class="card install" id="install" hidden>
+    <img src="../icons/favicon.png" alt="">
+    <div class="tx"><b>Add to your home screen</b><span class="s" data-hint></span></div>
+    <button class="go" data-install hidden>Install</button>
+    <button class="x" data-dismiss aria-label="Dismiss">×</button>
+  </section>
+
+  <section id="view"></section>
+
+  <a class="fb" href="https://wa.me/2348100038880?text=Camp%20app%20feedback%3A%20" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 2s.8 2.3 1 2.5c.1.2 1.6 2.5 4 3.5 1.5.6 2.1.7 2.8.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3Z"/></svg>
+    <span><b>Spotted a change or a mistake?</b>Send feedback on WhatsApp</span>
+  </a>
+
+  <footer>
+    <b>Unofficial companion app. Not affiliated with NYSC.</b><br>
+    Built from the published Orientation Course timetable and camp menu.<br>
+    Always follow announcements from camp officials.<br>
+    <a href="../v2/">Try the other design</a>
+    <div class="upd" data-updated></div>
+    <div class="credit">Built by <a href="https://exelidigital.com" target="_blank" rel="noopener">Alescio · Exeli Digital</a></div>
+  </footer>
+</div>
+
+<script src="../data.js"></script>
+<script src="../pwa.js" data-root="../"></script>
+<script>
+const {days:T, menu:MENU, meals:MEALS, toM, keys:DAYS, fixtures:FIX, myFirstRound, side:SIDE, platoons:PLATOONS, notices:NOTICES, meta:META} = CAMP;
+let myP = ""; try { myP = localStorage.getItem("camp-platoon") || ""; } catch (e) {}
+const PIN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`;
+const venue = v => v ? `<span class="vn">${PIN}${esc(v)}</span>` : "";
+const SPORT_ICON = {"Football":"⚽","Volleyball":"🏐","Badminton (singles)":"🏸","Athletics":"🏃"};
+const {allFixtures:ALLFIX, sides:SIDES, played:PLAYED, myMatches:MYM, sports:SPORTS} = CAMP;
+const isMine = f => !!myP && SIDES(f).some(x => x.p === myP);
+let sportSel = "Football"; try { sportSel = localStorage.getItem("camp-sport") || "Football"; } catch (e) {}
+const SHORT = s => s.replace(" (singles)", "");
+const scoreTxt = f => (f.sa !== undefined && f.sa !== "" ? `${f.sa}–${f.sb}` : "");
+/* One match card, used on the day view and the Sports page */
+function matchHTML(f, n, showDate, inSports){
+  const S = toM(f.t), done = PLAYED(f), late = f.d < n.date || (f.d === n.date && n.min > S + 90);
+  const live = !done && f.d === n.date && n.min >= S && n.min <= S + 90;
+  const when = `${showDate ? `${WD[wd(f.d)].slice(0,3)} ${dO(f.d).getUTCDate()} Oct · ` : ""}${fmt(S)}`;
+  const st = done ? `<span class="st ft">Full time</span>` : live ? `<span class="st lv">On now</span>` : late ? `<span class="st pd">Result pending</span>` : `<span class="st up">${when}</span>`;
+  const label = inSports ? `${f.no ? `Match #${f.no}` : f.stage}` : `${SPORT_ICON[f.sport]||"🏅"} ${SHORT(f.sport)} · ${f.stage}${f.no?` · #${f.no}`:""}`;
+  const head = `<div class="mt-h"><span>${label}${done || live || late ? ` · ${when}` : ""}</span>${st}</div>`;
+  if (!f.a) return `<div class="mt">${head}<div class="mt-r"><span class="nm">${esc(f.note || f.stage)}</span></div></div>`;
+  const [A, B] = SIDES(f);
+  const row = (r, sc, w) => `<div class="mt-r ${w ? "w" : ""} ${myP && r.p === myP ? "me" : ""}"><span class="nm">${esc(r.label)}${r.from ? `<small>${esc(r.from)}</small>` : ""}</span><span class="sc">${sc}${w ? " ✓" : ""}</span></div>`;
+  return `<div class="mt ${isMine(f) ? "mine" : ""}">${head}${row(A, f.sa ?? "", f.win === "a")}${row(B, f.sb ?? "", f.win === "b")}${f.note ? `<div class="fn">${esc(f.note)}</div>` : ""}</div>`;
+}
+function myListHTML(){
+  if (!myP) return `<div class="mysum">Pick your platoon to follow its matches through every round.</div>`;
+  const list = MYM(myP);
+  return `<div class="mysum">Platoon ${myP} · your matches${list.map(f => {
+    const [A, B] = SIDES(f), me = A.p === myP ? "a" : "b", opp = me === "a" ? B : A;
+    const res = PLAYED(f) && f.win ? (f.win === me ? `<b>Won ${scoreTxt(f)}</b>` : `Lost ${scoreTxt(f)}`) : `${WD[wd(f.d)].slice(0,3)} ${dO(f.d).getUTCDate()} Oct · ${fmt(toM(f.t))}`;
+    return `<span>${SPORT_ICON[f.sport]} ${SHORT(f.sport)} ${f.stage === "Round 1" ? "" : f.stage + " "}vs ${esc(opp.label)} · ${res}</span>`;
+  }).join("")}</div>`;
+}
+const pickerHTML = () => `<label class="pk">Your platoon
+  <select data-platoon aria-label="Your platoon"><option value="">Choose</option>${PLATOONS.map(p=>`<option value="${p}"${p===myP?" selected":""}>Platoon ${p}</option>`).join("")}</select></label>`;
+const STAGE_TITLE = {"Round 1":"Round 1","Quarter-final":"Quarter-finals","Semi-final":"Semi-finals","Third place":"Third-place match","Final":"Final","Heats":"Heats","Heats final":"Heats final"};
+function sportsHTML(n){
+  const list = ALLFIX.filter(f => f.sport === sportSel);
+  let h = `<div class="sp-top"><button class="back" data-back>← Back</button><h2>Sports</h2><span></span></div>
+    <div class="seg">${SPORTS.map(sp => `<button data-sport="${sp}" class="${sp === sportSel ? "on" : ""}">${SPORT_ICON[sp]} ${SHORT(sp)}</button>`).join("")}</div>
+    <section class="card">${pickerHTML()}${myListHTML()}</section>`;
+  CAMP.stages.forEach(stg => {
+    const ms = list.filter(f => f.stage === stg).sort((x, y) => (x.d + x.t).localeCompare(y.d + y.t));
+    if (!ms.length) return;
+    const doneN = ms.filter(PLAYED).length;
+    h += `<div class="sec-h"><h3>${STAGE_TITLE[stg] || stg}</h3><span>${doneN} of ${ms.length} played</span></div>
+      <section class="card mts">${ms.map(f => matchHTML(f, n, true, true)).join("")}</section>`;
+  });
+  h += `<p class="fxnote" style="margin:12px 4px">Fixtures may change. Confirm with your platoon officer. Results are entered by camp officials.</p>`;
+  return h;
+}
+const noticeHTML = a => `<section class="card notice ${a.urgent?"urgent":""}"><div class="k">${a.urgent?"Urgent announcement":"Announcement"}${a.by?` <em>${esc(a.by)}</em>`:""}</div>
+  <div class="t">${esc(a.title||"")}</div>${a.body?`<div class="nb">${esc(a.body).replace(/\n/g,"<br>")}</div>`:""}</section>`;
+const stamp = iso => { try { return new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true}).format(new Date(iso)); } catch (e) { return ""; } };
+
+const $ = s => document.querySelector(s);
+const fmt = m => { let h = Math.floor(m/60)%24, mi = m%60, ap = h>=12?"PM":"AM"; h = h%12||12; return `${h}:${String(mi).padStart(2,"0")} ${ap}`; };
+const fmtS = m => { let h = Math.floor(m/60)%24, mi = m%60; h = h%12||12; return `${h}:${String(mi).padStart(2,"0")}`; };
+const dur = m => m < 60 ? `${m} min` : `${Math.floor(m/60)}h ${String(m%60).padStart(2,"0")}m`;
+const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dO = iso => new Date(iso+"T12:00:00Z");
+const wd = iso => dO(iso).getUTCDay();
+const longDate = iso => `${WD[wd(iso)]}, ${dO(iso).getUTCDate()} ${MO[dO(iso).getUTCMonth()]}`;
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const isMeal = t => /breakfast|lunch|dinner/i.test(t);
+const isNight = t => /lights? out/i.test(t);
+const ROUTINE = /reveille|anthems|attendance|breakfast|lunch|dinner|lights? out|interlude|^personal administration$/i;
+
+/* Always Lagos time. Test any moment with ?t=2026-10-05T14:20 */
+let OFFSET = 0;
+const qp = new URLSearchParams(location.search).get("t");
+if (qp) { const ep = Date.parse(qp+":00+01:00"); if (!isNaN(ep)) OFFSET = ep - Date.now(); }
+function now(){
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",hourCycle:"h23",
+    year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"})
+    .formatToParts(new Date(Date.now()+OFFSET)).map(x=>[x.type,x.value]));
+  return { date:`${p.year}-${p.month}-${p.day}`, min:((+p.hour)%24)*60+(+p.minute), sec:+p.second };
+}
+
+let view = null, lastL = "", lastV = "";
+
+function buildDays(){
+  const n = now();
+  $("#days").innerHTML = DAYS.map(d =>
+    `<button class="chip" data-d="${d}"><small>${WD[wd(d)].slice(0,3)}</small><b>${dO(d).getUTCDate()}</b></button>`).join("");
+  $("#days").addEventListener("click", e => {
+    const c = e.target.closest(".chip"); if (!c) return;
+    view = c.dataset.d === now().date ? null : c.dataset.d;
+    render();
+    if (view) $("#view").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  const t = $(`.chip[data-d="${n.date}"]`);
+  if (t) t.scrollIntoView({inline:"center",block:"nearest"});
+}
+function paintDays(n){
+  const sel = view || n.date;
+  document.querySelectorAll(".chip").forEach(c => {
+    const d = c.dataset.d;
+    c.classList.toggle("today", d === n.date);
+    c.classList.toggle("past", d < n.date);
+    c.classList.toggle("sel", d === sel);
+  });
+}
+
+function state(date, n){
+  const rel = date < n.date ? "past" : date > n.date ? "future" : "today";
+  const items = T[date].map(([s,e,t,note,ven]) => {
+    const S = toM(s), E = toM(e);
+    const st = rel==="past" ? "done" : rel==="future" ? "up" : E <= n.min ? "done" : S <= n.min ? "cur" : "up";
+    return {s:S, e:E, t, note, ven, st};
+  });
+  return {items, cur:items.find(i=>i.st==="cur"), next:items.find(i=>i.st==="up")};
+}
+
+function mealStatus(date, n, m){
+  if (date < n.date || (date===n.date && n.min >= m.E)) return {cls:"done", txt:"Served"};
+  if (date===n.date && n.min >= m.S) return {cls:"now", txt:`Serving now · until ${fmt(m.E)}`};
+  if (date===n.date) return {cls:"", txt:`${fmt(m.S)} · in ${dur(m.S-n.min)}`};
+  return {cls:"", txt:fmt(m.S)};
+}
+
+function render(){
+  const n = now();
+  paintDays(n);
+  $("#clock").innerHTML = `${fmtS(n.min)}:${String(n.sec).padStart(2,"0")}<span class="ap">${n.min>=720?"PM":"AM"}</span>`;
+  const idx = DAYS.indexOf(n.date);
+  $("#dayno").textContent = idx >= 0 ? `Day ${idx+1} of ${DAYS.length}` : "Lagos time";
+  const up = META.updatedAt ? `Schedule updated ${stamp(META.updatedAt)}${META.updatedBy ? " by " + META.updatedBy : ""}` : "Showing the official printed timetable";
+  if ($("[data-updated]").textContent !== up) $("[data-updated]").textContent = up;
+  const onSports = location.hash === "#sports";
+  document.body.classList.toggle("on-sports", onSports);
+  $("#days").hidden = onSports; $("#live").hidden = onSports;
+  const L = onSports ? "" : T[n.date] ? liveHTML(n) : outsideHTML(n);
+  if (L !== lastL) { $("#live").innerHTML = L; lastL = L; }
+  const v = view || (T[n.date] ? n.date : null);
+  const V = onSports ? sportsHTML(n) : v ? dayHTML(v, n) : "";
+  if (V !== lastV && !(document.activeElement && document.activeElement.matches("[data-platoon]"))) { $("#view").innerHTML = V; lastV = V; }
+}
+
+function outsideHTML(n){
+  if (n.date < DAYS[0]){
+    const d = Math.round((dO(DAYS[0]) - dO(n.date))/864e5);
+    return `<section class="card empty"><div class="k" style="justify-content:center">Orientation camp</div>
+      <h1>Starts in ${d} day${d>1?"s":""}</h1><p class="s">Wednesday, 30 September 2026 · screening from 5:20 AM</p></section>`;
+  }
+  return `<section class="card empty"><div class="k" style="justify-content:center">Orientation camp</div>
+    <h1>Camp has ended</h1><p class="s">Congratulations on completing orientation. Good luck at your PPA.</p></section>`;
+}
+
+function liveHTML(n){
+  const {items, cur, next} = state(n.date, n);
+  const nowS = n.min*60 + n.sec;
+  const ns = NOTICES(n.date);
+  let h = ns.filter(a => a.urgent).map(noticeHTML).join("");
+  if (cur){
+    const total = (cur.e - cur.s)*60, left = cur.e*60 - nowS;
+    const pct = Math.min(100, Math.max(0, (1 - left/total)*100));
+    const cd = left >= 3600
+      ? `${Math.floor(left/3600)}h ${String(Math.floor(left%3600/60)).padStart(2,"0")}m`
+      : `${String(Math.floor(left/60)).padStart(2,"0")}:${String(left%60).padStart(2,"0")}`;
+    h += `<section class="hero">
+      <div class="eyebrow"><span class="pulse"></span>You should be doing now</div>
+      <h1>${esc(cur.t)}</h1>
+      <div class="when">${fmt(cur.s)} – ${fmt(cur.e)}${cur.note?`<span class="nt">${esc(cur.note)}</span>`:""}</div>${venue(cur.ven)}
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="hero-foot"><div><div class="big">${cd}</div><div class="lbl">Remaining</div></div>
+      <div class="ends">Ends<b>${fmt(cur.e)}</b></div></div></section>`;
+  } else {
+    const before = n.min < items[0].s;
+    const title = !next ? "Rest well" : before ? "Rest before reveille" : "Short break";
+    const sub = !next ? "Today's programme is over." : `Get ready for ${esc(next.t)}`;
+    h += `<section class="hero"><div class="eyebrow"><span class="pulse"></span>Right now</div>
+      <h1>${title}</h1><div class="when">${sub}</div>
+      ${next ? `<div class="bar"><i style="width:0"></i></div><div class="hero-foot"><div><div class="big">${dur(next.s - n.min)}</div><div class="lbl">Until next</div></div><div class="ends">Starts<b>${fmt(next.s)}</b></div></div>` : ""}
+      </section>`;
+  }
+  if (next && next.s - n.min <= 15 && next.s > n.min && !isMeal(next.t))
+    h += `<div class="alert"><span class="dot"></span>${esc(next.t)} starts in ${next.s - n.min} min.</div>`;
+  MEALS(n.date).forEach(m => { const d = m.S - n.min;
+    if (d > 0 && d <= 30) h += `<div class="alert meal"><span class="dot"></span>${m.name} starts in ${d} min.</div>`; });
+  if (next && cur) h += `<section class="card next"><div class="k">Up next <em>in ${dur(next.s - n.min)}</em></div>
+    <div class="t">${esc(next.t)}</div><div class="s">${fmt(next.s)} – ${fmt(next.e)}</div>${venue(next.ven)}</section>`;
+
+  h += ns.filter(a => !a.urgent).map(noticeHTML).join("");
+
+  /* Your platoon's match today */
+  FIX(n.date).filter(isMine).forEach(f => {
+    const S = toM(f.t), d = S - n.min;
+    if (d < -90 || PLAYED(f)) return;
+    const [A, B] = SIDES(f), opp = (A.p === myP ? B : A).label;
+    if (d > 0 && d <= 30) h += `<div class="alert"><span class="dot"></span>Your ${f.sport.toLowerCase()} match starts in ${d} min.</div>`;
+    h += `<section class="card spot mine"><div class="ic">${SPORT_ICON[f.sport]||"🏅"}</div><div class="body">
+      <div class="k">Your match today <em>${d > 0 ? "in " + dur(d) : "on now"}</em></div>
+      <div class="t">${f.sport} vs ${opp}</div><div class="s">${fmt(S)} · ${f.stage} · Match #${f.no}</div></div></section>`;
+  });
+
+  /* Tonight's social event, if it isn't already the next item */
+  const ev = items.find(i => i.s === 1200 && i.ven && i.st === "up");
+  if (ev && ev !== next && n.min >= 720)
+    h += `<section class="card spot"><div class="ic">🎭</div><div class="body">
+      <div class="k">Tonight <em>${fmt(ev.s)}</em></div>
+      <div class="t">${esc(ev.t)}</div>${ev.note?`<div class="s">${esc(ev.note)}</div>`:""}
+      ${venue(ev.ven)}<div class="s" style="margin-top:4px;font-weight:600">Platoons seated by 7:30 PM</div></div></section>`;
+  return h;
+}
+
+function dayHTML(date, n){
+  const isLive = date === n.date;
+  const {items} = state(date, n);
+  const menu = MENU[wd(date)];
+  let h = `<div class="sec-h"><h3>${isLive ? "Today's food" : "Food · " + longDate(date)}</h3>
+        ${!isLive ? `<button data-today>Back to today</button>` : ""}</div>`;
+  h += `<section class="card">` + MEALS(date).map(m => {
+    const st = mealStatus(date, n, m);
+    return `<div class="meal-r"><div class="lab"><b>${m.name}</b>${fmt(m.S)}</div>
+      <div><div class="food">${menu[m.i]}</div><span class="pill ${st.cls}">${st.txt}</span></div></div>`;
+  }).join("") + `</section>`;
+
+  const fx = FIX(date);
+  if (fx.length){
+    h += `<div class="sec-h"><h3>${isLive ? "Today's sports" : "Sports"}</h3><a class="sp-link" href="#sports">All results →</a></div>
+      <section class="card">${pickerHTML()}${myListHTML()}
+        <div class="mts">${fx.slice().sort((x,y)=>x.t.localeCompare(y.t)).map(f => matchHTML(f, n, false)).join("")}</div>
+        <a class="sp-btn" href="#sports">🏆 Fixtures and results by stage</a>
+      </section>`;
+  } else if (date >= DAYS[0] && ALLFIX.length) {
+    h += `<a class="card sp-card" href="#sports"><span>🏆</span><div><b>Sports fixtures and results</b><small>Football, volleyball, badminton and athletics, by stage</small></div><i>→</i></a>`;
+  }
+
+  const done = items.filter(i=>i.st==="done").length;
+  h += `<div class="sec-h"><h3>${isLive ? "Today's programme" : "Programme"}</h3>
+        <span>${isLive ? `${done} of ${items.length} done` : longDate(date)}</span></div>`;
+  h += `<section class="card"><ol class="tl">` + items.map(i =>
+    `<li class="${i.st} ${isMeal(i.t)?"meal-i":""}">
+      <span class="tm">${fmtS(i.s)}</span><span class="rail"><span class="nd"></span></span>
+      <div><div class="ti">${esc(i.t)}</div><div class="rg">${fmt(i.s)} – ${fmt(i.e)}</div>
+      ${i.note?`<div class="note">${esc(i.note)}</div>`:""}${venue(i.ven)}</div></li>`).join("") + `</ol></section>`;
+
+  const lo = items.find(i => isNight(i.t));
+  if (lo) h += `<section class="card lo"><div><div class="k">Lights out</div>
+      <div class="t">${fmt(lo.s)} – ${fmt(lo.e)}</div>
+      ${isLive && lo.s > n.min ? `<div class="s">in ${dur(lo.s - n.min)}</div>` : ""}</div><div class="moon"></div></section>`;
+
+  if (isLive){
+    const ti = DAYS.indexOf(date) + 1;
+    if (ti < DAYS.length){
+      const tm = DAYS[ti], tmenu = MENU[wd(tm)];
+      const hl = T[tm].filter(x => !ROUTINE.test(x[2])).slice(0,5);
+      const rev = T[tm].find(x => /reveille/i.test(x[2]));
+      h += `<div class="sec-h"><h3>Tomorrow</h3><span>${longDate(tm)}</span></div>
+        <section class="card">
+          <div class="k">${rev ? `Reveille ${fmt(toM(rev[0]))}` : "No reveille"}</div>
+          <ul class="tm-list">${hl.map(x=>`<li><span>${fmtS(toM(x[0]))}</span>${esc(x[2])}</li>`).join("")}</ul>
+          <div class="menu3"><div><small>Breakfast</small>${tmenu[0]}</div><div><small>Lunch</small>${tmenu[1]}</div><div><small>Dinner</small>${tmenu[2]}</div></div>
+        </section>`;
+    }
+  }
+  return h;
+}
+
+document.addEventListener("change", e => {
+  if (!e.target.matches("[data-platoon]")) return;
+  myP = e.target.value;
+  try { myP ? localStorage.setItem("camp-platoon", myP) : localStorage.removeItem("camp-platoon"); } catch (err) {}
+  e.target.blur(); render();
+});
+window.addEventListener("hashchange", () => { lastL = lastV = ""; render(); window.scrollTo({ top: 0 }); });
+window.addEventListener("camp:update", () => { lastL = lastV = ""; render(); });
+document.addEventListener("click", e => {
+  const sp = e.target.closest("[data-sport]");
+  if (sp) { sportSel = sp.dataset.sport; try { localStorage.setItem("camp-sport", sportSel); } catch (err) {} lastV = ""; render(); return; }
+  if (e.target.closest("[data-back]")) { if (history.length > 1 && document.referrer.indexOf(location.host) > -1) history.back(); else location.hash = ""; return; }
+  if (e.target.closest("[data-today]")) { view = null; render(); window.scrollTo({top:0,behavior:"smooth"}); }
+});
+/* Light / dark toggle: starts from the phone's setting, remembers the choice */
+const mq = matchMedia("(prefers-color-scheme: dark)");
+const isDark = () => { const t = document.documentElement.getAttribute("data-theme"); return t ? t === "dark" : mq.matches; };
+$("#theme").addEventListener("click", () => {
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("camp-theme", next); } catch (e) {}
+});
+
+buildDays();
+render();
+setInterval(render, 1000);
+</script>
+</body>
+</html>
