@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="description" content="Unofficial live camp assistant for NYSC 2026 Batch C Stream I. Works offline.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Camp Assistant">
+<title>NYSC Camp Assistant · 2026 Batch C Stream I</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="../icons/favicon.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+:root{
+  --bg:#0b1220;--card:#121c2d;--card-2:#172236;--line:#26354d;--line-2:#33445f;
+  --ink:#f4f7fb;--muted:#aeb9ca;--dim:#8fa3bd;--faint:#8393AA;
+  --green:#22c55e;--green-d:#168f5a;--green-bg:#143226;
+  --blue:#6ea8fe;--amber:#e4ad43;--amber-bg:#2b2416;--red-bg:#3a1c1f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:260px;background:radial-gradient(600px 220px at 50% -40px,rgba(34,197,94,.14),transparent);pointer-events:none}
+.app{max-width:560px;margin:auto;padding:0 12px 36px;position:relative}
+
+.top{position:sticky;top:0;z-index:5;background:rgba(11,18,32,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);margin:0 -12px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid transparent;transition:border-color .2s}
+.top.scrolled{border-bottom-color:var(--line)}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{width:36px;height:auto;flex:0 0 auto;filter:drop-shadow(0 3px 10px rgba(228,173,67,.25))}
+h1{font-size:16px;font-weight:800;letter-spacing:.01em}
+.sub{color:var(--muted);font-size:11px;letter-spacing:.06em;margin-top:2px}
+.live-clock{font-variant-numeric:tabular-nums;font-weight:800;font-size:17px;text-align:right;white-space:nowrap;min-width:118px}
+.live-clock small{display:block;font-size:10px;font-weight:600;color:var(--dim);letter-spacing:.06em}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;margin:10px 0;box-shadow:0 8px 25px rgba(0,0,0,.18)}
+.label{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--dim);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.label em{font-style:normal;color:var(--green);letter-spacing:.02em;white-space:nowrap}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stat{background:var(--card-2);border-radius:12px;padding:10px 11px}
+.stat span{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--dim)}
+.stat b{display:block;font-size:15px;margin-top:3px}
+
+.now{border-color:var(--green-d);background:linear-gradient(145deg,#112b24,var(--card) 70%)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse 2s infinite;display:inline-block;margin-right:6px;vertical-align:1px}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+.activity{font-size:24px;font-weight:800;margin:8px 0 6px;line-height:1.15}
+.time{font-size:14px;color:#b9c7d9}
+.note{color:var(--amber);font-size:12.5px;margin-top:4px}
+.count-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:12px}
+.count{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.count small{display:block;font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.06em}
+.ends{font-size:12.5px;color:var(--muted);text-align:right}
+.progress{height:8px;background:#243248;border-radius:99px;overflow:hidden;margin:12px 0 0}
+.bar{height:100%;background:linear-gradient(90deg,var(--green-d),var(--green));border-radius:99px;transition:width 1s linear}
+
+.alert{display:flex;gap:10px;align-items:center;background:var(--red-bg);border:1px solid rgba(248,113,113,.3);color:#fecaca;border-radius:14px;padding:11px 13px;margin:10px 0;font-size:13.5px;font-weight:600}
+.alert.meal-a{background:var(--amber-bg);border-color:rgba(228,173,67,.3);color:#fde3a7}
+
+.next{border-left:4px solid var(--blue)}
+.next .activity{font-size:19px}
+.mealcard{border-left:4px solid var(--amber)}
+.mealcard .activity{font-size:18px}
+
+.install{display:flex;align-items:center;gap:12px;border-color:rgba(34,197,94,.35)}
+.install[hidden]{display:none}
+.install img{width:30px;flex:0 0 auto}
+.install .tx{flex:1;min-width:0;font-size:12.5px;color:var(--muted)}
+.install b{display:block;color:var(--ink);font-size:14px}
+.install .go{background:var(--green-d);color:#fff;border:0;border-radius:11px;padding:10px 14px;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.install .go[hidden]{display:none}
+.install .x{background:none;border:0;color:var(--faint);font-size:20px;cursor:pointer;align-self:flex-start}
+
+.menurow{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.menurow:last-child{border:0;padding-bottom:2px}
+.menurow .ic{font-size:20px;width:30px;text-align:center;flex:0 0 auto;padding-top:1px}
+.menurow .mb{flex:1}
+.menurow b{font-size:14px}
+.menurow .food{font-size:14px;color:#dbe3ee;margin-top:2px;line-height:1.4}
+.chip{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:3px 9px;margin-top:6px;background:#1f2b40;color:var(--muted)}
+.chip.on{background:var(--green-bg);color:var(--green)}
+.chip.off{background:transparent;color:var(--faint);padding-left:0}
+
+.days{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin:10px -15px 0;padding:2px 15px 4px;scroll-snap-type:x proximity}
+.days::-webkit-scrollbar{display:none}
+.day{flex:0 0 auto;width:52px;padding:8px 0;border-radius:12px;background:var(--card-2);border:1px solid var(--line);color:var(--ink);text-align:center;cursor:pointer;font:inherit;position:relative;scroll-snap-align:center}
+.day small{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--dim)}
+.day b{font-size:17px}
+.day.past{opacity:.5}
+.day.today::after{content:"";position:absolute;left:50%;bottom:4px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--green)}
+.day.sel{background:var(--green-d);border-color:var(--green-d);opacity:1}
+.day.sel small{color:#d1fae5}
+.backbtn{background:none;border:1px solid var(--line-2);color:var(--ink);font:inherit;font-size:12px;font-weight:700;border-radius:99px;padding:5px 11px;cursor:pointer}
+
+.item{padding:11px 12px;border-left:4px solid var(--line-2);background:var(--card-2);border-radius:10px;margin:7px 0;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.item .it{font-weight:700;font-size:14px;line-height:1.3}
+.item small{color:#9fb0c6;font-size:12px;font-variant-numeric:tabular-nums}
+.item .tag{font-size:11px;font-weight:800;flex:0 0 auto;color:var(--dim)}
+.item.current{border-left-color:var(--green);background:var(--green-bg)}
+.item.current .tag{color:var(--green)}
+.item.done{opacity:.45}
+.item.done .it{text-decoration:line-through;text-decoration-color:var(--faint)}
+.item.future{border-left-color:var(--blue)}
+.item.meal-i.future{border-left-color:var(--amber)}
+
+.lights .activity{font-size:19px}
+.tm-list{margin-top:8px}
+.tm-list div{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.tm-list div:last-child{border:0}
+.tm-list span{color:var(--dim);font-variant-numeric:tabular-nums;width:46px;flex:0 0 auto}
+.m3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
+.m3 div{background:var(--card-2);border-radius:10px;padding:8px;font-size:12px;line-height:1.35;color:#dbe3ee}
+.m3 b{display:block;font-size:10px;letter-spacing:.06em;color:var(--dim);margin-bottom:3px}
+
+.vn{font-size:12.5px;font-weight:700;color:var(--muted);margin-top:4px}
+.mine-card{border-left:4px solid var(--green)}
+.mine-card .activity{font-size:19px}
+.item .sp{font-size:10.5px;font-weight:800;letter-spacing:.05em;color:var(--dim);margin-bottom:2px}
+.pk{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 4px;font-size:13px;font-weight:700;color:var(--muted)}
+.pk select{appearance:none;-webkit-appearance:none;background:var(--card-2);color:var(--ink);border:1px solid var(--line-2);border-radius:11px;min-height:44px;padding:0 14px;font:inherit;font-size:14px;font-weight:800}
+.mysum{font-size:12.5px;color:var(--muted);margin:6px 0 4px;line-height:1.5}
+.mysum b{color:var(--green)}
+.mysum span{display:block;color:var(--ink);margin-top:4px;font-size:13px}
+.ann{border-left:4px solid var(--green)}
+.ann .activity{font-size:18px}
+.ann.urg{border-left-color:#f87171;background:var(--red-bg)}
+.water .upd{margin-top:10px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.notice{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
+.water{text-align:center;color:#718096;font-size:11px;margin:20px 0 96px;line-height:1.7}
+.water a{color:inherit}
+.water .credit{margin-top:12px;font-size:12px;font-weight:700;color:var(--muted)}
+.water .credit a{color:var(--green);text-decoration:none}
+.fb{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--muted);font-size:12.5px}
+.fb svg{width:28px;height:28px;color:#25D366;flex:0 0 auto}
+.fb b{display:block;font-size:11px;letter-spacing:.08em;color:var(--dim);margin-bottom:2px}
+.off{display:inline-block;margin-top:4px;font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--green)}
+.off[hidden]{display:inline-block;visibility:hidden}
+.off.is-off{color:var(--amber)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="top" id="top">
+    <div class="top-row">
+      <div class="brand">
+        <img class="logo" src="../assets/nysc-logo.png" alt="NYSC logo" width="240" height="304">
+        <div><h1>NYSC CAMP ASSISTANT</h1><div class="sub">2026 BATCH C • STREAM I</div><span class="off" data-offline hidden></span></div>
+      </div>
+      <div class="live-clock"><span id="clock">&nbsp;</span><small>LAGOS TIME</small></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div class="stat"><span>📅 TODAY</span><b id="date"></b></div>
+      <div class="stat"><span>📍 CAMP DAY</span><b id="campday"></b></div>
+      <div class="stat"><span>✅ TODAY DONE</span><b id="donecount"></b></div>
+      <div class="stat"><span>🌙 LIGHTS OUT</span><b id="lightsin"></b></div>
+    </div>
+  </div>
+
+  <div id="live"></div>
+
+  <div class="card install" id="install" hidden>
+    <img src="../icons/favicon.png" alt="">
+    <div class="tx"><b>Install on your phone</b><span data-hint></span></div>
+    <button class="go" data-install hidden>INSTALL</button>
+    <button class="x" data-dismiss aria-label="Dismiss">×</button>
+  </div>
+
+  <div class="card">
+    <div class="label">📅 BROWSE CAMP DAYS <button class="backbtn hidden" id="backbtn">← TODAY</button></div>
+    <div class="days" id="days"></div>
+  </div>
+
+  <div id="view"></div>
+
+  <div class="card">
+    <div class="label">📊 CAMP PROGRESS <em id="pctText"></em></div>
+    <div class="progress"><div id="campbar" class="bar"></div></div>
+    <div class="notice" id="progressDetail"></div>
+  </div>
+
+  <a class="card fb" href="https://wa.me/2348100038880?text=Camp%20app%20feedback%3A%20" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 2s.8 2.3 1 2.5c.1.2 1.6 2.5 4 3.5 1.5.6 2.1.7 2.8.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3Z"/></svg>
+    <span><b>💬 SPOTTED A CHANGE OR MISTAKE?</b>Send feedback on WhatsApp</span>
+  </a>
+
+  <div class="water">Unofficial companion. Not affiliated with NYSC.<br>Follow camp officials' announcements.<br><a href="../">Try the other design</a><div class="upd" data-updated></div><div class="credit">Built by <a href="https://exelidigital.com" target="_blank" rel="noopener">Alescio · Exeli Digital</a></div></div>
+</main>
+
+<script src="../data.js"></script>
+<script src="../pwa.js" data-root="../"></script>
+<script>
+const {days:T, menu:MENU, meals:MEALS, toM, keys:DAYS, fixtures:FIX, myFirstRound, side:SIDE, platoons:PLATOONS, notices:NOTICES, meta:META} = CAMP;
+const stamp=iso=>{try{return new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true}).format(new Date(iso))}catch(e){return""}};
+let myP="";try{myP=localStorage.getItem("camp-platoon")||""}catch(e){}
+const ICON={"Football":"⚽","Volleyball":"🏐","Badminton (singles)":"🏸","Athletics":"🏃"};
+const isMine=f=>!!myP&&CAMP.sides(f).some(x=>x.p===myP);
+const ven=v=>v?`<div class="vn">📍 ${esc(v)}</div>`:"";
+const $=id=>document.getElementById(id);
+const hm=m=>{let h=Math.floor(m/60)%24,mi=m%60,ap=h>=12?"PM":"AM";h=h%12||12;return`${h}:${String(mi).padStart(2,"0")} ${ap}`};
+const dur=m=>m<60?`${m} min`:`${Math.floor(m/60)}h ${String(m%60).padStart(2,"0")}m`;
+const cd=s=>{const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}h ${String(m).padStart(2,"0")}m ${String(x).padStart(2,"0")}s`:`${m}m ${String(x).padStart(2,"0")}s`};
+const WD=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dO=k=>new Date(k+"T12:00:00Z"),wd=k=>dO(k).getUTCDay();
+const nice=k=>`${WD[wd(k)].slice(0,3)}, ${dO(k).getUTCDate()} ${MO[dO(k).getUTCMonth()]}`;
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const isMeal=t=>/breakfast|lunch|dinner/i.test(t);
+const ROUTINE=/reveille|anthems|attendance|breakfast|lunch|dinner|lights out|interlude|^personal administration$/i;
+const TOTAL=DAYS.length;
+
+/* Always Lagos time. Test with ?t=2026-10-05T14:20 */
+let OFFSET=0;const qp=new URLSearchParams(location.search).get("t");
+if(qp){const e=Date.parse(qp+":00+01:00");if(!isNaN(e))OFFSET=e-Date.now()}
+function now(){
+  const p=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}).formatToParts(new Date(Date.now()+OFFSET)).map(x=>[x.type,x.value]));
+  return{date:`${p.year}-${p.month}-${p.day}`,min:((+p.hour)%24)*60+(+p.minute),sec:+p.second};
+}
+function dayState(k,n){
+  const rel=k<n.date?"past":k>n.date?"future":"today";
+  const items=T[k].map(([s,e,t,note,vn])=>{const S=toM(s),E=toM(e);
+    const st=rel==="past"?"done":rel==="future"?"future":E<=n.min?"done":S<=n.min?"current":"future";
+    return{S,E,t,note,vn,st}});
+  return{items,cur:items.find(i=>i.st==="current"),next:items.find(i=>i.st==="future")};
+}
+function mealChip(k,n,m){
+  if(k<n.date||(k===n.date&&n.min>=m.E))return`<span class="chip off">✅ Already served</span>`;
+  if(k===n.date&&n.min>=m.S)return`<span class="chip on">🟢 Being served now · till ${hm(m.E)}</span>`;
+  if(k===n.date)return`<span class="chip">⏰ ${hm(m.S)} · in ${dur(m.S-n.min)}</span>`;
+  return`<span class="chip">⏰ ${hm(m.S)}</span>`;
+}
+
+let view=null,lastL="",lastV="";
+function buildDays(){
+  $("days").innerHTML=DAYS.map(k=>`<button class="day" data-k="${k}"><small>${WD[wd(k)].slice(0,3).toUpperCase()}</small><b>${dO(k).getUTCDate()}</b></button>`).join("");
+  $("days").onclick=e=>{const b=e.target.closest(".day");if(!b)return;view=b.dataset.k===now().date?null:b.dataset.k;render()};
+  $("backbtn").onclick=()=>{view=null;render();window.scrollTo({top:0,behavior:"smooth"})};
+  const t=document.querySelector(`.day[data-k="${now().date}"]`);if(t)t.scrollIntoView({inline:"center",block:"nearest"});
+}
+
+function render(){
+  const n=now(),k=n.date,inCamp=!!T[k],sel=view||k;
+  $("clock").textContent=hm(n.min).replace(" ",`:${String(n.sec).padStart(2,"0")} `);
+  $("date").textContent=nice(k);
+  const idx=DAYS.indexOf(k);
+  {const up=META.updatedAt?`Schedule updated ${stamp(META.updatedAt)}${META.updatedBy?" by "+META.updatedBy:""}`:"Showing the official printed timetable";const el=document.querySelector("[data-updated]");if(el.textContent!==up)el.textContent=up;}
+  $("campday").textContent=inCamp?`Day ${idx+1} of ${TOTAL}`:k<DAYS[0]?"Not started":"Completed";
+  document.querySelectorAll(".day").forEach(b=>{const d=b.dataset.k;b.classList.toggle("today",d===k);b.classList.toggle("past",d<k);b.classList.toggle("sel",d===sel)});
+  $("backbtn").classList.toggle("hidden",!view);
+
+  const frac=inCamp?(idx+n.min/1440)/TOTAL:k<DAYS[0]?0:1;
+  $("campbar").style.width=(frac*100).toFixed(1)+"%";
+  $("pctText").textContent=Math.round(frac*100)+"%";
+  const left=TOTAL-1-idx;
+  $("progressDetail").textContent=inCamp?`${idx} day${idx===1?"":"s"} completed · ${left} more day${left===1?"":"s"} after today · closing Tue 20 Oct`:k<DAYS[0]?"Camp opens Wednesday 30 September":"Orientation course completed. Well done.";
+
+  if(!inCamp){
+    $("donecount").textContent="—";$("lightsin").textContent="—";
+    $("live").innerHTML=`<div class="card now"><div class="label">🔥 STATUS</div><div class="activity">${k<DAYS[0]?"Camp has not started":"Orientation course completed"}</div><div class="time">${k<DAYS[0]?"Screening begins 5:20 AM, Wed 30 Sep":"Good luck at your PPA"}</div></div>`;
+    $("view").innerHTML=view?dayHTML(view,n):"";return;
+  }
+
+  const{items,cur,next}=dayState(k,n);
+  $("donecount").textContent=`${items.filter(i=>i.st==="done").length} of ${items.length}`;
+  const lo=items.find(i=>/lights out/i.test(i.t));
+  $("lightsin").textContent=lo?(n.min<lo.S?`in ${dur(lo.S-n.min)}`:n.min<lo.E?"Now":"Passed"):"—";
+
+  let h=NOTICES(k).map(a=>`<div class="card ann ${a.urgent?"urg":""}"><div class="label">${a.urgent?"🚨 URGENT ANNOUNCEMENT":"📢 ANNOUNCEMENT"}${a.by?` <em>${esc(a.by)}</em>`:""}</div><div class="activity">${esc(a.title||"")}</div>${a.body?`<div class="time">${esc(a.body).replace(/\n/g,"<br>")}</div>`:""}</div>`).join("");const nowS=n.min*60+n.sec;
+  if(cur){
+    const total=(cur.E-cur.S)*60,rem=cur.E*60-nowS,pct=Math.min(100,(1-rem/total)*100);
+    h+=`<div class="card now"><div class="label"><span><span class="dot"></span>WHAT YOU SHOULD BE DOING NOW</span><em>🟢 ON SCHEDULE</em></div>
+      <div class="activity">${esc(cur.t)}</div><div class="time">${hm(cur.S)} – ${hm(cur.E)}</div>${cur.note?`<div class="note">${esc(cur.note)}</div>`:""}${ven(cur.vn)}
+      <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
+      <div class="count-row"><div class="count"><small>⏳ REMAINING</small>${cd(rem)}</div><div class="ends">Ends ${hm(cur.E)}</div></div></div>`;
+  }else{
+    const before=n.min<items[0].S,title=!next?"Rest well":before?"Rest before reveille":"Short break";
+    h+=`<div class="card now"><div class="label"><span><span class="dot"></span>RIGHT NOW</span></div>
+      <div class="activity">${title}</div><div class="time">${next?`Get ready for ${esc(next.t)}`:"Today's programme is over."}</div>
+      ${next?`<div class="count-row"><div class="count"><small>⏳ UNTIL NEXT</small>${cd(next.S*60-nowS)}</div><div class="ends">Starts ${hm(next.S)}</div></div>`:""}</div>`;
+  }
+  if(next&&next.S-n.min<=15&&next.S>n.min&&!isMeal(next.t))h+=`<div class="alert">⚠️ ${esc(next.t)} starts in ${next.S-n.min} min.</div>`;
+  const ml=MEALS(k);
+  ml.forEach(m=>{const d=m.S-n.min;if(d>0&&d<=30)h+=`<div class="alert meal-a">${m.icon} ${m.name} starts in ${d} min.</div>`});
+  if(next&&cur)h+=`<div class="card next"><div class="label">➡️ NEXT ACTIVITY <em>in ${dur(next.S-n.min)}</em></div><div class="activity">${esc(next.t)}</div><div class="time">${hm(next.S)} – ${hm(next.E)}</div>${ven(next.vn)}</div>`;
+  FIX(k).filter(isMine).forEach(f=>{const S=toM(f.t),d=S-n.min;if(d<-90)return;
+    if(d>0&&d<=30)h+=`<div class="alert">⚠️ Your ${f.sport.toLowerCase()} match starts in ${d} min.</div>`;
+    if(CAMP.played(f))return;const SD=CAMP.sides(f);h+=`<div class="card mine-card"><div class="label">${ICON[f.sport]||"🏅"} YOUR MATCH TODAY <em>${d>0?"in "+dur(d):"on now"}</em></div><div class="activity">${f.sport} vs ${esc((SD[0].p===myP?SD[1]:SD[0]).label)}</div><div class="time">${hm(S)} · ${f.stage} · Match #${f.no}</div></div>`;});
+  const menu=MENU[wd(k)],nm=ml.find(m=>n.min<m.E);
+  if(nm){const serving=n.min>=nm.S;
+    h+=`<div class="card mealcard"><div class="label">${serving?"🟢 BEING SERVED NOW":"🍽️ NEXT MEAL"} <em>${serving?`till ${hm(nm.E)}`:`in ${dur(nm.S-n.min)}`}</em></div>
+      <div class="activity">${nm.icon} ${nm.name}</div><div class="time">${menu[nm.i]}</div></div>`;}
+  if(h!==lastL){$("live").innerHTML=h;lastL=h}
+  const V=dayHTML(sel,n);
+  if(V!==lastV&&!(document.activeElement&&document.activeElement.matches("[data-platoon]"))){$("view").innerHTML=V;lastV=V}
+}
+
+function dayHTML(k,n){
+  const live=k===n.date,{items}=dayState(k,n),menu=MENU[wd(k)];
+  let h=`<div class="card"><div class="label">🍽️ ${live?"TODAY'S MENU":"MENU · "+nice(k).toUpperCase()}</div>`+
+    MEALS(k).map(m=>`<div class="menurow"><div class="ic">${m.icon}</div><div class="mb"><b>${m.name}</b><div class="food">${menu[m.i]}</div>${mealChip(k,n,m)}</div></div>`).join("")+`</div>`;
+  const fx=FIX(k);
+  if(fx.length){const mine=myP?myFirstRound(myP):[];
+    h+=`<div class="card"><div class="label">🏆 ${live?"TODAY'S SPORTS":"SPORTS · "+nice(k).toUpperCase()} <em>${fx.length} FIXTURE${fx.length>1?"S":""}</em></div>
+      <label class="pk">Your platoon <select data-platoon><option value="">Choose</option>${PLATOONS.map(p=>`<option value="${p}"${p===myP?" selected":""}>Platoon ${p}</option>`).join("")}</select></label>
+      <div class="mysum">${myP?`PLATOON ${myP} · ROUND 1 MATCHES`+mine.map(f=>`<span>${ICON[f.sport]} <b>${f.sport}</b> ${nice(f.d)} · ${hm(toM(f.t))}</span>`).join(""):"Pick your platoon to highlight your matches."}</div>`+
+      fx.map(f=>{const S=toM(f.t),past=k<n.date||(k===n.date&&n.min>S+90);
+        return`<div class="item ${isMine(f)?"current":"future"} ${past?"done":""}"><div><div class="sp">${ICON[f.sport]||"🏅"} ${f.sport.toUpperCase()} · ${f.stage.toUpperCase()}${f.no?" · #"+f.no:""}</div><div class="it">${f.a?CAMP.sides(f).map((r,j)=>`${(f.win===(j?"b":"a"))?"✓ ":""}${esc(r.label)}${f.sa!==undefined&&f.sa!==""?" "+(j?f.sb:f.sa):""}`).join(" vs "):f.sport}</div><small>${hm(S)}${CAMP.played(f)?" · FULL TIME":""}</small>${f.note?`<div class="note">${esc(f.note)}</div>`:""}</div><span class="tag">${isMine(f)?"YOU":""}</span></div>`}).join("")+
+      `<div class="notice">Fixtures may change. Confirm with your platoon officer.</div></div>`;}
+  h+=`<div class="card"><div class="label">📋 ${live?"TODAY'S TIMETABLE":"TIMETABLE · "+nice(k).toUpperCase()}</div>`+
+    items.map(i=>`<div class="item ${i.st} ${isMeal(i.t)?"meal-i":""}"><div><div class="it">${esc(i.t)}</div><small>${hm(i.S)} – ${hm(i.E)}</small>${i.note?`<div class="note">${esc(i.note)}</div>`:""}${ven(i.vn)}</div><span class="tag">${i.st==="current"?"NOW":i.st==="done"?"✓":""}</span></div>`).join("")+`</div>`;
+  const lo=items.find(i=>/lights out/i.test(i.t));
+  if(lo)h+=`<div class="card lights"><div class="label">🌙 LIGHTS OUT</div><div class="activity">${hm(lo.S)} – ${hm(lo.E)}</div></div>`;
+  if(live){const ti=DAYS.indexOf(k)+1;
+    if(ti<DAYS.length){const tk=DAYS[ti],tm=MENU[wd(tk)],hl=T[tk].filter(x=>!ROUTINE.test(x[2])).slice(0,5),rv=T[tk].find(x=>/reveille/i.test(x[2]));
+      h+=`<div class="card"><div class="label">📆 TOMORROW · ${nice(tk).toUpperCase()} <em>${rv?"Reveille "+hm(toM(rv[0])):"No reveille"}</em></div>
+        <div class="tm-list">${hl.map(x=>`<div><span>${x[0]}</span>${esc(x[2])}</div>`).join("")}</div>
+        <div class="m3"><div><b>BREAKFAST</b>${tm[0]}</div><div><b>LUNCH</b>${tm[1]}</div><div><b>DINNER</b>${tm[2]}</div></div></div>`}}
+  return h;
+}
+
+document.addEventListener("change",e=>{if(!e.target.matches("[data-platoon]"))return;myP=e.target.value;
+  try{myP?localStorage.setItem("camp-platoon",myP):localStorage.removeItem("camp-platoon")}catch(err){}e.target.blur();render()});
+window.addEventListener("scroll",()=>$("top").classList.toggle("scrolled",scrollY>8),{passive:true});
+buildDays();render();setInterval(render,1000);
+</script>
+</body>
+</html>

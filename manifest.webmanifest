@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "NYSC Camp Companion · 2026 Batch C Stream I",
+  "short_name": "Camp Companion",
+  "description": "Unofficial live companion for the NYSC 2026 Batch C Stream I orientation camp: what's on now, what's next and today's menu. Works offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F4EE",
+  "theme_color": "#0A5C36",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

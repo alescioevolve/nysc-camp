@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0A5C36">
+<title>Camp Admin · Camp Companion</title>
+<link rel="icon" type="image/png" href="../icons/favicon.png">
+<style>
+@font-face{font-family:Inter;src:url(../fonts/inter-400.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:Inter;src:url(../fonts/inter-500.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:Inter;src:url(../fonts/inter-600.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:Inter;src:url(../fonts/inter-700.woff2) format("woff2");font-weight:700;font-display:swap}
+:root{
+  --bg:#F6F4EE;--surface:#FFFFFF;--ink:#14231B;--muted:#535C55;--faint:#68716A;--line:#E2DED2;
+  --green:#0A5C36;--green-2:#0B6B3E;--green-soft:#E6F0EA;--khaki:#6E531D;--khaki-soft:#F3ECDD;
+  --alert:#963B19;--alert-soft:#F8EAE2;--radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+.stripe{height:4px;display:flex;background:var(--green)}.stripe i{flex:1;background:var(--green)}.stripe i:nth-child(2){background:#fff}
+.wrap{max-width:640px;margin:0 auto;padding:16px 16px 0}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand img{width:36px;height:auto}
+.brand h1{font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.brand p{font-size:12.5px;color:var(--muted)}
+.conn{font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--khaki-soft);color:var(--khaki);white-space:nowrap}
+.conn.ok{background:var(--green-soft);color:var(--green-2)}
+.open-app{font-size:13px;font-weight:600;color:var(--green-2);text-decoration:none;white-space:nowrap}
+
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 14px;padding:2px 16px 4px;position:sticky;top:0;z-index:5;background:var(--bg)}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;min-height:42px;padding:0 15px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-size:14px;font-weight:600;cursor:pointer}
+.tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--alert);margin-left:6px;vertical-align:2px}
+
+.days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 12px;padding:2px 16px 4px}
+.days::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;width:50px;min-height:52px;border:1px solid var(--line);background:var(--surface);border-radius:13px;text-align:center;cursor:pointer;position:relative}
+.chip small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.chip b{display:block;font-size:17px;font-weight:700}
+.chip.on{background:var(--green);border-color:var(--green);color:#fff}.chip.on small{color:#D7E9DE}
+.chip.ch::after{content:"";position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--alert)}
+
+h2{font-size:19px;font-weight:700;letter-spacing:-.015em;margin:4px 2px 2px}
+.sub{font-size:13.5px;color:var(--muted);margin:0 2px 12px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1.1fr .75fr 1.35fr;gap:8px}
+.row,.row3{margin-top:8px}
+.row>label.f,.row3>label.f{margin-top:0}
+.card>.row:nth-child(2),.card>.row3:nth-child(2){margin-top:0}
+label.f{display:block;margin-top:8px}
+label.f:first-child{margin-top:0}
+label.f span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 4px 2px}
+input[type=text],input[type=time],input[type=date],input[type=password],input[type=number],select,textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:11px;background:var(--bg);padding:9px 11px;font-size:15.5px;outline:none}
+textarea{min-height:72px;resize:vertical;line-height:1.4}
+input:focus,select:focus,textarea:focus{border-color:var(--green-2);background:#fff;box-shadow:0 0 0 3px var(--green-soft)}
+.bad input,.bad{border-color:var(--alert)!important}
+.warn{font-size:12.5px;font-weight:600;color:var(--alert);margin-top:6px}
+.it-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.it-head b{font-size:13px;color:var(--muted);font-weight:600}
+.del{background:none;border:0;color:var(--alert);font-size:13px;font-weight:600;min-height:36px;padding:0 4px;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 18px;border-radius:13px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:15px;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn.full{width:100%}
+.btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.check{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:15px;font-weight:500}
+.check input{width:22px;height:22px;accent-color:var(--green)}
+.meal-h{font-size:15px;font-weight:700;margin-bottom:4px}
+.tip{font-size:13px;color:var(--muted);line-height:1.5}
+.tip code{font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:5px}
+.msg{border-radius:14px;padding:12px 14px;font-size:14px;font-weight:500;margin-bottom:12px}
+.msg.ok{background:var(--green-soft);color:var(--green-2)}
+.msg.err{background:var(--alert-soft);color:var(--alert)}
+.msg.info{background:var(--khaki-soft);color:var(--khaki)}
+.msg[hidden]{display:none}
+.urgent-on{border-left:4px solid var(--alert)}
+.hist a{color:var(--green-2);font-weight:600}
+
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.bar .in{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.bar .st{flex:1;min-width:0;font-size:13.5px;font-weight:600;line-height:1.3}
+.bar .st small{display:block;font-weight:500;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{text-align:center;color:var(--muted);font-size:14px;padding:18px 8px}
+.res .side{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.res .side span{font-size:16px;font-weight:600;min-width:0}
+.res .side input{width:84px;flex:0 0 auto;text-align:center;font-size:20px;font-weight:700}
+.res label.f{margin-top:10px}
+.more{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.more summary{font-size:14px;font-weight:600;color:var(--green-2);cursor:pointer;min-height:36px;display:flex;align-items:center}
+.rs{display:block;font-size:12px;font-weight:600;color:var(--green-2);margin:4px 0 0 2px}
+</style>
+</head>
+<body>
+<div class="stripe"><i></i><i></i><i></i></div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <img src="../assets/nysc-logo.png" alt="" width="240" height="304">
+      <div><h1>Camp Admin</h1><p>Batch C · Stream I</p></div>
+    </div>
+    <div style="text-align:right"><span class="conn" id="conn">Not connected</span><br><a class="open-app" href="../" target="_blank" rel="noopener">Open app ↗</a></div>
+  </header>
+
+  <div class="msg" id="msg" hidden></div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab" data-tab="time">Timetable</button>
+    <button class="tab" data-tab="notice">Announcements</button>
+    <button class="tab" data-tab="fix">Fixtures &amp; results</button>
+    <button class="tab" data-tab="menu">Menu</button>
+    <button class="tab" data-tab="set">Settings</button>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<div class="bar">
+  <div class="in">
+    <div class="st" id="status">No changes<small id="substatus"></small></div>
+    <button class="btn ghost" id="discard" disabled>Discard</button>
+    <button class="btn primary" id="publish" disabled>Publish</button>
+  </div>
+</div>
+
+<script src="../data.js"></script>
+<script>
+const S = CAMP.SOURCE;
+const API = `https://api.github.com/repos/${S.owner}/${S.repo}/contents/${S.path}`;
+const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MEALS = ["Breakfast","Lunch","Dinner"];
+const SPORTS = ["Football","Volleyball","Badminton (singles)","Athletics"];
+const STAGES = ["Round 1","Quarter-final","Semi-final","Third place","Final","Heats","Heats final"];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const dO = k => new Date(k + "T12:00:00Z");
+const wd = k => dO(k).getUTCDay();
+const nice = k => `${WD[wd(k)].slice(0,3)} ${dO(k).getUTCDate()} ${MO[dO(k).getUTCMonth()]}`;
+const clone = o => JSON.parse(JSON.stringify(o));
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch (e) {} },
+  del(k){ try { localStorage.removeItem(k); } catch (e) {} }
+};
+function lagosToday(){
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/* ── State ── */
+let token = store.get("camp-admin-token") || "";
+let editor = store.get("camp-admin-name") || "";
+let sha = null;                 // GitHub version of camp.json we are editing
+let base = clone(CAMP.BUILT_IN); // last published copy
+let work = clone(base);         // working copy
+let tab = "time";
+const DATES = Object.keys(base.days).sort();
+let day = DATES.includes(lagosToday()) ? lagosToday() : DATES[0];
+let fday = day;
+
+/* ── UTF-8 safe base64 for the GitHub API ── */
+function toB64(str){
+  const bytes = new TextEncoder().encode(str); let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function fromB64(b64){
+  const bin = atob(b64.replace(/\s/g,"")); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/* ── Messages ── */
+function say(text, kind = "info"){
+  const m = $("#msg"); m.textContent = text; m.className = "msg " + kind; m.hidden = !text;
+  if (text) window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ── GitHub ── */
+async function gh(method, body){
+  const r = await fetch(API + (method === "GET" ? `?ref=${S.branch}&t=${Date.now()}` : ""), {
+    method, cache: "no-store",
+    headers: { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
+               ...(body ? { "Content-Type": "application/json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  return r;
+}
+async function connect(){
+  if (!token) { setConn(false); return; }
+  setConn(null);
+  try {
+    const r = await gh("GET");
+    if (r.status === 401 || r.status === 403) { setConn(false); say("GitHub refused the access key. Check it in Settings, or create a new one.", "err"); return; }
+    if (r.status === 404) {
+      sha = null; base = clone(CAMP.BUILT_IN);
+      say("Connected. No live data has been published yet, so you're editing the built-in timetable. Your first Publish creates it.", "info");
+    } else if (r.ok) {
+      const j = await r.json(); sha = j.sha;
+      const c = JSON.parse(fromB64(j.content));
+      if (!CAMP.valid(c)) throw new Error("camp.json has an unexpected format");
+      base = c; say("", "info");
+    } else throw new Error("GitHub error " + r.status);
+    const draft = JSON.parse(store.get("camp-admin-draft") || "null");
+    if (draft && draft.sha === sha && CAMP.valid(draft.work) && JSON.stringify(draft.work) !== JSON.stringify(base)) {
+      work = draft.work; say("Restored the unsaved changes you made earlier on this phone.", "info");
+    } else { work = clone(base); store.del("camp-admin-draft"); }
+    setConn(true); render(); refreshBar();
+  } catch (e) {
+    setConn(false); say("Couldn't reach GitHub. Check your network and try again. (" + e.message + ")", "err");
+  }
+}
+function setConn(ok){
+  const c = $("#conn");
+  c.className = "conn" + (ok ? " ok" : "");
+  c.textContent = ok === null ? "Connecting…" : ok ? "Connected" : "Not connected";
+}
+
+/* ── Change tracking ── */
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function changes(){
+  const out = [];
+  const dd = DATES.filter(k => !same(work.days[k], base.days[k]));
+  if (dd.length) out.push("timetable " + dd.map(nice).join(", "));
+  if (!same(work.menu, base.menu)) out.push("menu");
+  if (!same(work.fixtures, base.fixtures) || !same(work.bestLosers || {}, base.bestLosers || {})) out.push("results and fixtures");
+  if (!same(work.announcements, base.announcements)) out.push("announcements");
+  return out;
+}
+function refreshBar(){
+  const ch = changes();
+  $("#status").firstChild.nodeValue = ch.length ? `${ch.length} section${ch.length>1?"s":""} changed` : "No changes";
+  $("#substatus").textContent = ch.length ? ch.join(" · ") : (base.updatedAt ? `Live since ${new Date(base.updatedAt).toLocaleString("en-GB",{timeZone:"Africa/Lagos",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true})}${base.updatedBy?" by "+base.updatedBy:""}` : "Showing the built-in timetable");
+  $("#discard").disabled = !ch.length;
+  $("#publish").disabled = !ch.length || !token || !editor;
+  document.querySelectorAll(".tab").forEach(t => {
+    const k = t.dataset.tab;
+    const dirty = (k==="time" && ch.some(c=>c.startsWith("timetable"))) || (k==="menu" && ch.includes("menu")) || (k==="fix" && ch.includes("results and fixtures")) || (k==="notice" && ch.includes("announcements"));
+    t.innerHTML = t.textContent.replace(/\s*$/,"") + (dirty ? '<span class="dot"></span>' : "");
+    t.classList.toggle("on", k === tab);
+  });
+  if (ch.length) store.set("camp-admin-draft", JSON.stringify({ sha, work }));
+  else store.del("camp-admin-draft");
+}
+
+/* ── Field binding: data-p="path" on every input ── */
+function setPath(p, v){
+  const [kind, a, b, c] = p.split("|");
+  if (kind === "d") { const it = work.days[a][+b]; while (it.length <= +c) it.push(""); it[+c] = v; }
+  if (kind === "m") work.menu[+a][+b] = v;
+  if (kind === "f") {
+    const f = work.fixtures[+a];
+    f[b] = b === "no" ? (v === "" ? null : +v) : v;
+    if (b === "sa" || b === "sb") {           // winner follows the scores unless it's a draw
+      const x = f.sa, y = f.sb;
+      if (x !== "" && y !== "" && x !== undefined && y !== undefined && +x !== +y) f.win = +x > +y ? "a" : "b";
+      else if (x === "" && y === "") f.win = "";
+      const sel = document.querySelector(`[data-p="f|${a}|win"]`); if (sel) sel.value = f.win || "";
+    }
+  }
+  if (kind === "bl") { work.bestLosers = work.bestLosers || {}; const arr = work.bestLosers[a] = work.bestLosers[a] || ["","",""]; arr[+b] = v.trim(); }
+  if (kind === "a") work.announcements[+a][b] = v;
+}
+document.addEventListener("input", e => {
+  const p = e.target.dataset && e.target.dataset.p; if (!p) return;
+  setPath(p, e.target.type === "checkbox" ? e.target.checked : e.target.value);
+  if (p.startsWith("d|")) validateDay();
+  if (p.startsWith("a|") && e.target.type === "checkbox") e.target.closest(".card").classList.toggle("urgent-on", e.target.checked);
+  refreshBar();
+});
+document.addEventListener("change", e => {
+  const p = e.target.dataset && e.target.dataset.p;
+  if (p && p.startsWith("d|") && /\|[01]$/.test(p)) { sortDay(); render(); }   // re-order after a time changes
+  if (e.target.id === "name") { editor = e.target.value.trim(); store.set("camp-admin-name", editor); refreshBar(); }
+});
+
+/* ── Timetable ── */
+const toM = t => { if (!/^\d\d:\d\d$/.test(t||"")) return NaN; const [h,m] = t.split(":").map(Number); return h*60+m; };
+function sortDay(){ work.days[day].sort((x,y) => (x[0]||"").localeCompare(y[0]||"")); }
+function validateDay(){
+  const items = work.days[day]; let prevEnd = -1;
+  items.forEach((it, i) => {
+    const card = document.querySelector(`[data-item="${i}"]`); if (!card) return;
+    const s = toM(it[0]), e = toM(it[1]); const w = card.querySelector(".warn");
+    let msg = "";
+    if (isNaN(s) || isNaN(e)) msg = "Set both start and end times.";
+    else if (e <= s) msg = "End time must be after the start time.";
+    else if (s < prevEnd) msg = "Overlaps the item before it.";
+    if (!isNaN(e)) prevEnd = Math.max(prevEnd, e);
+    w.textContent = msg; card.classList.toggle("bad", !!msg);
+  });
+}
+function chips(sel, cur, fn, changed){
+  return `<div class="days">${DATES.map(k => `<button class="chip ${k===cur?"on":""} ${changed(k)?"ch":""}" data-${sel}="${k}"><small>${WD[wd(k)].slice(0,3)}</small><b>${dO(k).getUTCDate()}</b></button>`).join("")}</div>`;
+}
+function timeTab(){
+  const items = work.days[day];
+  return `${chips("day", day, null, k => !same(work.days[k], base.days[k]))}
+    <h2>${WD[wd(day)]}, ${dO(day).getUTCDate()} ${MO[dO(day).getUTCMonth()]}</h2>
+    <p class="sub">${items.length} items. Times re-order automatically. Evening events go here too, with their venue.</p>
+    ${items.map((it, i) => `<div class="card" data-item="${i}">
+      <div class="it-head"><b>Item ${i+1}</b><button class="del" data-del-item="${i}">Remove</button></div>
+      <div class="row">
+        <label class="f"><span>Starts</span><input type="time" value="${esc(it[0])}" data-p="d|${day}|${i}|0"></label>
+        <label class="f"><span>Ends</span><input type="time" value="${esc(it[1])}" data-p="d|${day}|${i}|1"></label>
+      </div>
+      <label class="f"><span>Activity</span><input type="text" value="${esc(it[2])}" data-p="d|${day}|${i}|2" placeholder="e.g. Skills Acquisition Training"></label>
+      <label class="f"><span>Note (optional)</span><input type="text" value="${esc(it[3])}" data-p="d|${day}|${i}|3" placeholder="e.g. Theme, dress code or reminder"></label>
+      <label class="f"><span>Venue (optional)</span><input type="text" value="${esc(it[4])}" data-p="d|${day}|${i}|4" placeholder="e.g. Parade Ground"></label>
+      <div class="warn"></div>
+    </div>`).join("")}
+    <button class="btn full" data-add-item>+ Add an item to ${nice(day)}</button>`;
+}
+
+/* ── Menu ── */
+function menuTab(){
+  return `<h2>Weekly menu</h2><p class="sub">The same menu repeats every week. Each day of camp uses its weekday's row.</p>
+    ${WD.map((name, w) => `<div class="card"><div class="meal-h">${name}</div>
+      ${MEALS.map((m, i) => `<label class="f"><span>${m}</span><input type="text" value="${esc(work.menu[w][i])}" data-p="m|${w}|${i}"></label>`).join("")}
+    </div>`).join("")}`;
+}
+
+/* ── Fixtures ── */
+/* Same rules as the app: "W3" = winner of match 3, "L10" = loser of match 10, "BL1" = best loser 1 */
+function resolveW(sport, tok, depth = 0){
+  tok = String(tok ?? "").trim();
+  if (!tok) return "TBD";
+  if (/^\d+$/.test(tok)) return `Platoon ${tok}`;
+  const m = tok.match(/^(W|L)(\d+)$/i);
+  if (m && depth < 6) {
+    const g = work.fixtures.find(x => x.sport === sport && x.no === +m[2]);
+    if (g && (g.win === "a" || g.win === "b")) { const w = m[1].toUpperCase() === "W"; return resolveW(sport, g[w ? g.win : (g.win === "a" ? "b" : "a")], depth + 1); }
+    return `${m[1].toUpperCase() === "W" ? "Winner" : "Loser"} #${m[2]} (not played yet)`;
+  }
+  const b = tok.match(/^BL(\d+)$/i);
+  if (b) { const v = ((work.bestLosers || {})[sport] || [])[+b[1] - 1]; return v ? resolveW(sport, v, depth + 1) : `Best loser ${b[1]} (not set)`; }
+  return tok;
+}
+function fixTab(){
+  work.bestLosers = work.bestLosers || {};
+  const list = work.fixtures.map((f, i) => ({ f, i })).filter(x => x.f.d === fday).sort((x,y) => (x.f.t||"").localeCompare(y.f.t||""));
+  const opt = (arr, v) => arr.map(o => `<option ${o===v?"selected":""}>${esc(o)}</option>`).join("") + (arr.includes(v) || !v ? "" : `<option selected>${esc(v)}</option>`);
+  const hint = (f, side) => { const tok = String(f[side] || ""); return /^\d+$/.test(tok) || !tok ? "" : `<small class="rs" data-rs="${side}">→ ${esc(resolveW(f.sport, tok))}</small>`; };
+  return `${chips("fday", fday, null, k => !same(work.fixtures.filter(f=>f.d===k), base.fixtures.filter(f=>f.d===k)))}
+    <h2>Fixtures · ${nice(fday)}</h2>
+    <p class="sub">After a match, enter both scores. The winner is picked from the scores. For a draw decided on penalties, choose the winner yourself. Later rounds fill in automatically.</p>
+    ${list.length ? "" : `<div class="card empty">No fixtures on this day.</div>`}
+    ${list.map(({ f, i }) => `<div class="card" data-fix="${i}">
+      <div class="it-head"><b>${esc(f.sport)}${f.no?` · Match #${f.no}`:""} · ${esc(f.stage)}</b><button class="del" data-del-fix="${i}">Remove</button></div>
+      ${f.a !== "" || f.sport !== "Athletics" ? `
+      <div class="res">
+        <div class="side"><span>${esc(resolveW(f.sport, f.a))}</span><input type="number" inputmode="numeric" min="0" value="${esc(f.sa ?? "")}" data-p="f|${i}|sa" placeholder="–" aria-label="Score for side A"></div>
+        <div class="side"><span>${esc(resolveW(f.sport, f.b))}</span><input type="number" inputmode="numeric" min="0" value="${esc(f.sb ?? "")}" data-p="f|${i}|sb" placeholder="–" aria-label="Score for side B"></div>
+        <label class="f"><span>Winner</span><select data-p="f|${i}|win">
+          <option value="" ${!f.win?"selected":""}>Not played yet</option>
+          <option value="a" ${f.win==="a"?"selected":""}>${esc(resolveW(f.sport, f.a))}</option>
+          <option value="b" ${f.win==="b"?"selected":""}>${esc(resolveW(f.sport, f.b))}</option></select></label>
+      </div>` : ""}
+      <details class="more"><summary>Edit fixture details</summary>
+        <div class="row"><label class="f"><span>Sport</span><select data-p="f|${i}|sport">${opt(SPORTS, f.sport)}</select></label>
+          <label class="f"><span>Stage</span><select data-p="f|${i}|stage">${opt(STAGES, f.stage)}</select></label></div>
+        <div class="row"><label class="f"><span>Date</span><input type="date" value="${esc(f.d)}" min="${DATES[0]}" max="${DATES[DATES.length-1]}" data-p="f|${i}|d"></label>
+          <label class="f"><span>Time</span><input type="time" value="${esc(f.t)}" data-p="f|${i}|t"></label></div>
+        <div class="row"><label class="f"><span>Side A</span><input type="text" value="${esc(f.a)}" data-p="f|${i}|a" placeholder="5, W1, L10 or BL2">${hint(f,"a")}</label>
+          <label class="f"><span>Side B</span><input type="text" value="${esc(f.b)}" data-p="f|${i}|b" placeholder="5, W1, L10 or BL2">${hint(f,"b")}</label></div>
+        <div class="row"><label class="f"><span>Match #</span><input type="number" inputmode="numeric" value="${f.no ?? ""}" data-p="f|${i}|no"></label>
+          <label class="f"><span>Note (optional)</span><input type="text" value="${esc(f.note)}" data-p="f|${i}|note"></label></div>
+      </details>
+    </div>`).join("")}
+    <button class="btn full" data-add-fix>+ Add a fixture on ${nice(fday)}</button>
+    <h2 style="margin-top:22px">Best losers</h2>
+    <p class="sub">Some quarter-finals use the best Round 1 losers. Enter their platoon numbers once Round 1 ends.</p>
+    ${SPORTS.filter(sp => sp !== "Athletics").map(sp => `<div class="card"><div class="meal-h">${esc(sp)}</div>
+      <div class="row3" style="grid-template-columns:1fr 1fr 1fr">${[0,1,2].map(j => `<label class="f"><span>Best loser ${j+1}</span><input type="text" inputmode="numeric" value="${esc(((work.bestLosers[sp]||[])[j])||"")}" data-p="bl|${sp}|${j}" placeholder="e.g. 4"></label>`).join("")}</div></div>`).join("")}`;
+}
+
+/* ── Announcements ── */
+function noticeTab(){
+  const today = lagosToday();
+  const list = work.announcements.map((a, i) => ({ a, i })).sort((x,y) => (y.a.postedAt||"").localeCompare(x.a.postedAt||""));
+  return `<h2>Announcements</h2><p class="sub">Shown at the top of every corps member's app between the two dates. Urgent ones appear above everything else.</p>
+    <button class="btn full primary" data-add-notice style="margin-bottom:12px">+ New announcement</button>
+    ${list.length ? "" : `<div class="card empty">No announcements yet.</div>`}
+    ${list.map(({ a, i }) => `<div class="card ${a.urgent?"urgent-on":""}">
+      <div class="it-head"><b>${(a.to||a.from) < today ? "Ended" : a.from > today ? "Scheduled" : "Showing now"}${a.by?` · by ${esc(a.by)}`:""}</b><button class="del" data-del-notice="${i}">Delete</button></div>
+      <label class="f"><span>Title</span><input type="text" value="${esc(a.title)}" data-p="a|${i}|title" placeholder="e.g. Lecture moved to the Auditorium"></label>
+      <label class="f"><span>Message</span><textarea data-p="a|${i}|body" placeholder="Details corps members need to know">${esc(a.body)}</textarea></label>
+      <div class="row"><label class="f"><span>Show from</span><input type="date" value="${esc(a.from)}" data-p="a|${i}|from"></label>
+        <label class="f"><span>Show until</span><input type="date" value="${esc(a.to)}" data-p="a|${i}|to"></label></div>
+      <label class="check"><input type="checkbox" ${a.urgent?"checked":""} data-p="a|${i}|urgent"> Mark as urgent</label>
+    </div>`).join("")}`;
+}
+
+/* ── Settings ── */
+function setTab(){
+  return `<h2>Settings</h2><p class="sub">Connect this phone to the live schedule. Only people with the access key can publish.</p>
+    <div class="card">
+      <label class="f"><span>Your name (shown as "updated by")</span><input type="text" id="name" value="${esc(editor)}" placeholder="e.g. Musa Adamu" autocomplete="name"></label>
+      <label class="f"><span>GitHub access key</span><input type="password" id="token" value="${esc(token)}" placeholder="github_pat_…" autocomplete="off" spellcheck="false"></label>
+      <label class="check"><input type="checkbox" id="remember" ${store.get("camp-admin-token")?"checked":""}> Remember the key on this phone</label>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn primary" id="save-key" style="flex:1">Connect</button>
+        <button class="btn" id="forget">Forget key</button>
+      </div>
+    </div>
+    <div class="card tip">
+      Live data is stored in <code>${S.owner}/${S.repo}</code>, file <code>${S.path}</code>.<br>
+      Every Publish is saved as a version with the editor's name. <span class="hist"><a href="https://github.com/${S.owner}/${S.repo}/commits/${S.branch}/${S.path}" target="_blank" rel="noopener">See the change history ↗</a></span><br><br>
+      Lost a phone? Delete the key at <b>github.com → Settings → Developer settings → Fine-grained tokens</b>. It stops working immediately.
+    </div>
+    <div class="card tip">
+      <b>Backup.</b> Download the current working copy as a file, or restore one.
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="dl" style="flex:1">Download backup</button>
+      <label class="btn" style="flex:1">Restore<input type="file" id="ul" accept="application/json,.json" hidden></label></div>
+    </div>`;
+}
+
+function render(){
+  const m = $("#main");
+  m.innerHTML = tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "notice" ? noticeTab() : setTab();
+  if (tab === "time") { validateDay(); const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" }); }
+  if (tab === "fix") { const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" }); }
+  refreshBar();
+}
+
+/* ── Clicks ── */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button, label.btn"); if (!t) return;
+  if (t.dataset.tab) { tab = t.dataset.tab; render(); window.scrollTo({ top: 0 }); return; }
+  if (t.dataset.day) { day = t.dataset.day; render(); return; }
+  if (t.dataset.fday) { fday = t.dataset.fday; render(); return; }
+  if (t.hasAttribute("data-add-item")) {
+    const last = work.days[day][work.days[day].length - 1];
+    work.days[day].push([last ? last[1] : "09:00", "", "", "", ""]); render();
+    const cards = document.querySelectorAll("[data-item]"); cards[cards.length - 1].scrollIntoView({ block: "center" });
+    cards[cards.length - 1].querySelector('input[type="text"]').focus(); return;
+  }
+  if (t.dataset.delItem !== undefined) {
+    const it = work.days[day][+t.dataset.delItem];
+    if (confirmRemove(`Remove "${it[2] || "this item"}"?`)) { work.days[day].splice(+t.dataset.delItem, 1); render(); } return;
+  }
+  if (t.hasAttribute("data-add-fix")) { work.fixtures.push({ d: fday, t: "17:00", sport: "Football", no: null, stage: "Round 1", a: "", b: "", note: "", score: "" }); render(); return; }
+  if (t.dataset.delFix !== undefined) { if (confirmRemove("Remove this fixture?")) { work.fixtures.splice(+t.dataset.delFix, 1); render(); } return; }
+  if (t.hasAttribute("data-add-notice")) {
+    const today = DATES.includes(lagosToday()) ? lagosToday() : DATES[0];
+    work.announcements.push({ id: "n" + Date.now(), title: "", body: "", urgent: false, from: today, to: today, postedAt: new Date().toISOString(), by: editor });
+    render(); document.querySelector('[data-p$="|title"]').focus(); return;
+  }
+  if (t.dataset.delNotice !== undefined) { if (confirmRemove("Delete this announcement?")) { work.announcements.splice(+t.dataset.delNotice, 1); render(); } return; }
+  if (t.id === "save-key") {
+    token = $("#token").value.trim(); editor = $("#name").value.trim(); store.set("camp-admin-name", editor);
+    if ($("#remember").checked) store.set("camp-admin-token", token); else store.del("camp-admin-token");
+    if (!editor) { say("Add your name first. It shows on every update you publish.", "err"); return; }
+    await connect(); if ($("#conn").classList.contains("ok")) { say("Connected. You can now edit and publish.", "ok"); tab = "time"; render(); }
+    return;
+  }
+  if (t.id === "forget") { token = ""; store.del("camp-admin-token"); setConn(false); render(); say("Key removed from this phone.", "info"); return; }
+  if (t.id === "dl") {
+    const blob = new Blob([JSON.stringify(work, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `camp-backup-${lagosToday()}.json`; a.click(); return;
+  }
+  if (t.id === "discard") { if (confirmRemove("Discard all unpublished changes?")) { work = clone(base); store.del("camp-admin-draft"); render(); say("Changes discarded.", "info"); } return; }
+  if (t.id === "publish") { publish(); return; }
+});
+document.addEventListener("change", e => {
+  if (e.target.id !== "ul" || !e.target.files[0]) return;
+  e.target.files[0].text().then(txt => {
+    const c = JSON.parse(txt);
+    if (!CAMP.valid(c)) throw new Error("not a Camp Companion backup");
+    work = c; render(); say("Backup loaded. Review it, then Publish.", "ok");
+  }).catch(err => say("That file couldn't be loaded: " + err.message, "err"));
+});
+/* Native confirm is avoided on purpose in some embedded browsers; keep it simple and explicit */
+function confirmRemove(q){ return window.confirm(q); }
+
+/* ── Publish ── */
+async function publish(){
+  const ch = changes();
+  if (!ch.length || !token || !editor) return;
+  const bad = DATES.find(k => work.days[k].some((it, i, a) => { const s = toM(it[0]), e = toM(it[1]); return isNaN(s) || isNaN(e) || e <= s || !String(it[2]).trim(); }));
+  if (bad) { tab = "time"; day = bad; render(); say(`Fix the highlighted items on ${nice(bad)} first. Each needs a start, an end after it, and a name.`, "err"); return; }
+  const btn = $("#publish"); btn.disabled = true; btn.textContent = "Publishing…";
+  const next = clone(work); next.updatedAt = new Date().toISOString(); next.updatedBy = editor;
+  try {
+    const r = await gh("PUT", { message: `Update by ${editor}: ${ch.join("; ")}`, content: toB64(JSON.stringify(next, null, 1)), branch: S.branch, ...(sha ? { sha } : {}) });
+    if (r.status === 409 || r.status === 422) { say("Someone else published while you were editing. Your changes are kept. Tap Connect in Settings to load their version, then redo your edits.", "err"); return; }
+    if (r.status === 401 || r.status === 403) { say("GitHub refused the access key. It may have expired. Create a new one and connect again.", "err"); return; }
+    if (!r.ok) throw new Error("GitHub error " + r.status);
+    const j = await r.json(); sha = j.content.sha; base = next; work = clone(next);
+    store.del("camp-admin-draft");
+    say("Published. Phones with signal will show the update within about 5 minutes.", "ok");
+  } catch (e) {
+    say("Publishing failed. Your changes are still here. Check your network and try again. (" + e.message + ")", "err");
+  } finally { btn.textContent = "Publish"; refreshBar(); }
+}
+
+window.addEventListener("beforeunload", e => { if (changes().length) { e.preventDefault(); e.returnValue = ""; } });
+
+/* ── Start ── */
+if (!token || !editor) { tab = "set"; render(); say("Welcome. Add your name and the GitHub access key to start.", "info"); }
+else { render(); connect(); }
+</script>
+</body>
+</html>
