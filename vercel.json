@@ -1,10 +1,30 @@
 {
   "cleanUrls": false,
   "rewrites": [
-    { "source": "/live/camp.json", "destination": "https://raw.githubusercontent.com/alescioevolve/camp-companion-data/main/camp.json" }
+    {
+      "source": "/live/camp.json",
+      "destination": "https://raw.githubusercontent.com/alescioevolve/camp-companion-data/main/camp.json"
+    }
   ],
   "headers": [
-    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-    { "source": "/private-admin/(.*)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] }
-  ]
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/private-admin/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    }
+  ],
+  "trailingSlash": true
 }

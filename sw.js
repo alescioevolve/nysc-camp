@@ -1,13 +1,16 @@
 /* Offline support: everything is cached on first visit, so the app opens
    with no network. Bump VERSION whenever you change any file. */
-const VERSION = "camp-v13";
+const VERSION = "camp-v14";
 const FILES = [
   "./", "./index.html", "./data.js", "./pwa.js",
   "./app/", "./app/index.html", "./app/manifest.webmanifest",
   "./v2/", "./v2/index.html", "./v2/manifest.webmanifest",
   "./assets/nysc-logo.png",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-192.png",
-  "./icons/maskable-512.png", "./icons/apple-touch-icon.png", "./icons/admin-192.png", "./icons/favicon.png",
+  "./icons/maskable-512.png", "./icons/apple-touch-icon.png", "./icons/favicon.png",
+  "./private-admin/manifest.webmanifest", "./icons/camp-admin-48.png", "./icons/camp-admin-96.png",
+  "./icons/camp-admin-180.png", "./icons/camp-admin-192.png", "./icons/camp-admin-512.png",
+  "./icons/camp-admin-maskable-192.png", "./icons/camp-admin-maskable-512.png",
   "./fonts/inter-400.woff2",
   "./fonts/inter-500.woff2", "./fonts/inter-600.woff2", "./fonts/inter-700.woff2"
 ];
