@@ -307,9 +307,10 @@
     return fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store", signal: ctl && ctl.signal })
       .then(r => r.ok ? r.json() : null).catch(() => null).finally(() => timer && clearTimeout(timer));
   }
+  /* Ask every route at once and keep the newest copy, so one slow or out-of-date route can't hold back an update */
   async function latest() {
-    for (const url of [HERE, RAW, CDN].filter(Boolean)) { const c = await get(url); if (valid(c)) return c; }
-    return null;
+    const got = await Promise.all([HERE, RAW, CDN].filter(Boolean).map(get));
+    return got.filter(valid).sort((x, y) => (y.updatedAt || "").localeCompare(x.updatedAt || ""))[0] || null;
   }
   function refresh() {
     if (typeof fetch !== "function") return Promise.resolve(false);
@@ -328,9 +329,14 @@
   if (PREVIEW === "draft") {
     try { const d = JSON.parse(localStorage.getItem("camp-admin-draft") || "null"); if (d && valid(d.work)) apply(d.work); } catch (e) {}
   } else if (!/\/private-admin\//.test(location.pathname)) {
-    refresh();
-    setInterval(refresh, 5 * 60 * 1000);
-    window.addEventListener("online", refresh);
+    /* Check on open, every 2 minutes while on screen, and the moment the app comes back to the front */
+    let last = 0;
+    const check = () => { if (document.visibilityState === "visible" && Date.now() - last > 20000) { last = Date.now(); refresh(); } };
+    check();
+    setInterval(check, 2 * 60 * 1000);
+    window.addEventListener("online", check);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("pageshow", e => { if (e.persisted) check(); });
   }
 
   /* Announcements showing on a given date (from ≤ date ≤ to), urgent first */
