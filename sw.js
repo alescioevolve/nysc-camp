@@ -1,13 +1,13 @@
 /* Offline support: everything is cached on first visit, so the app opens
    with no network. Bump VERSION whenever you change any file. */
-const VERSION = "camp-v11";
+const VERSION = "camp-v12";
 const FILES = [
   "./", "./index.html", "./data.js", "./pwa.js",
   "./app/", "./app/index.html", "./app/manifest.webmanifest",
   "./v2/", "./v2/index.html", "./v2/manifest.webmanifest",
   "./assets/nysc-logo.png",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-192.png",
-  "./icons/maskable-512.png", "./icons/apple-touch-icon.png", "./icons/favicon.png",
+  "./icons/maskable-512.png", "./icons/apple-touch-icon.png", "./icons/admin-192.png", "./icons/favicon.png",
   "./fonts/inter-400.woff2",
   "./fonts/inter-500.woff2", "./fonts/inter-600.woff2", "./fonts/inter-700.woff2"
 ];
@@ -24,10 +24,20 @@ self.addEventListener("activate", e => {
   );
 });
 
-/* Serve from cache instantly, refresh the cache in the background */
+/* Pages: fetch fresh when there is signal (4 s limit), saved copy when offline.
+   Everything else: serve the saved copy instantly and refresh it in the background. */
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+  if (req.mode === "navigate") {
+    e.respondWith(caches.open(VERSION).then(cache => {
+      const net = fetch(req).then(res => { if (res && res.ok) cache.put(req, res.clone()); return res; });
+      const slow = new Promise(r => setTimeout(r, 4000)).then(() => cache.match(req, { ignoreSearch: true }));
+      return Promise.race([net.catch(() => cache.match(req, { ignoreSearch: true })), slow.then(h => h || net)])
+        .then(r => r || cache.match("./app/") || net);
+    }));
+    return;
+  }
   e.respondWith(
     caches.open(VERSION).then(cache =>
       cache.match(req, { ignoreSearch: true }).then(hit => {
