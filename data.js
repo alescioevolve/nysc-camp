@@ -261,6 +261,10 @@
      signal, keep the last copy, and fall back to the built-in data above when offline. */
   const SOURCE = { owner: "alescioevolve", repo: "camp-companion-data", branch: "main", path: "camp.json" };
   const RAW = `https://raw.githubusercontent.com/${SOURCE.owner}/${SOURCE.repo}/${SOURCE.branch}/${SOURCE.path}`;
+  const CDN = `https://cdn.jsdelivr.net/gh/${SOURCE.owner}/${SOURCE.repo}@${SOURCE.branch}/${SOURCE.path}`;
+  const PURGE = `https://purge.jsdelivr.net/gh/${SOURCE.owner}/${SOURCE.repo}@${SOURCE.branch}/${SOURCE.path}`;
+  /* Same-site copy (served by the host's proxy, e.g. Vercel). Helps on networks that can't reach GitHub. */
+  const HERE = (() => { try { return new URL("live/camp.json", document.currentScript.src).href; } catch (e) { return ""; } })();
   const announcements = [];
   const meta = { updatedAt: "", updatedBy: "" };
   const keys = Object.keys(days).sort();
@@ -296,11 +300,20 @@
     if (saved && (saved.updatedAt || "") > meta.updatedAt) apply(saved);
   } catch (e) {}
 
-  /* 2. Latest from GitHub, when there is signal */
+  /* 2. Latest copy, when there is signal. Tries each route in turn; the first good one wins. */
+  function get(url) {
+    const ctl = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = ctl && setTimeout(() => ctl.abort(), 8000);
+    return fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store", signal: ctl && ctl.signal })
+      .then(r => r.ok ? r.json() : null).catch(() => null).finally(() => timer && clearTimeout(timer));
+  }
+  async function latest() {
+    for (const url of [HERE, RAW, CDN].filter(Boolean)) { const c = await get(url); if (valid(c)) return c; }
+    return null;
+  }
   function refresh() {
     if (typeof fetch !== "function") return Promise.resolve(false);
-    return fetch(RAW + "?t=" + Date.now(), { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
+    return latest()
       .then(c => {
         if (!valid(c) || (c.updatedAt || "") <= meta.updatedAt) return false;
         apply(c);
@@ -310,7 +323,11 @@
       })
       .catch(() => false);
   }
-  if (!/\/private-admin\//.test(location.pathname)) {
+  /* Admin preview: show the admin's unpublished changes from this phone instead of the live copy */
+  const PREVIEW = new URLSearchParams(location.search).get("preview");
+  if (PREVIEW === "draft") {
+    try { const d = JSON.parse(localStorage.getItem("camp-admin-draft") || "null"); if (d && valid(d.work)) apply(d.work); } catch (e) {}
+  } else if (!/\/private-admin\//.test(location.pathname)) {
     refresh();
     setInterval(refresh, 5 * 60 * 1000);
     window.addEventListener("online", refresh);
@@ -328,6 +345,6 @@
     sports: ["Football", "Volleyball", "Badminton (singles)", "Athletics"],
     stages: ["Round 1", "Quarter-final", "Semi-final", "Third place", "Final", "Heats", "Heats final"],
     platoons: ["1","2","3","4","5","6","7","8","9","10"],
-    SOURCE, RAW, BUILT_IN, apply, exportContent, refresh, valid
+    SOURCE, RAW, PURGE, PREVIEW, BUILT_IN, apply, exportContent, refresh, valid
   };
 })();

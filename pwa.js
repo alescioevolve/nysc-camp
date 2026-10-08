@@ -28,6 +28,7 @@
   }
 
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const embedded = window.self !== window.top;   // shown inside the admin's corps member view
   let deferred = null;
   let dismissed = false;
   try { dismissed = localStorage.getItem("camp-install-dismissed") === "1"; } catch (_) {}
@@ -37,7 +38,7 @@
   function card() { return document.getElementById("install"); }
 
   function show(mode) {
-    const el = card(); if (!el || standalone || dismissed) return;
+    const el = card(); if (!el || standalone || dismissed || embedded) return;
     const btn = el.querySelector("[data-install]");
     const hint = el.querySelector("[data-hint]");
     if (mode === "prompt") { btn.hidden = false; hint.textContent = "Opens instantly and works offline in camp."; }
