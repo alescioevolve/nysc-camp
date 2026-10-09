@@ -126,8 +126,7 @@
       ["09:50","12:00","State Coordinator's Debriefing of Corps Members and Introduction of Field Officers"],
       ["12:00","14:00","Personal Administration"], LS,
       ["16:00","18:30","Final Parade Rehearsals"], DN, SOC, LO],
-    "2026-10-20": [["05:20","08:55","Bath and Breakfast"],
-      ["09:00","22:30","Closing / Collection of Corps Members"]]
+    "2026-10-20": [["05:20","07:55","Bath and Breakfast"],["08:00","08:10","Corps members form up on parade","","Parade Ground"],["08:10","08:20","Camp officials arrive"],["08:20","08:30","NYSC State Coordinator arrives"],["08:30","08:40","Invited guests arrive"],["08:40","09:00","Service Commanders arrive"],["09:00","09:05","His Excellency, Sir Siminalayi Fubara, GSSRS arrives"],["09:05","09:10","National/NYSC Anthem"],["09:10","09:20","His Excellency inspects the Guards mounted by Corps Members"],["09:20","09:40","His Excellency reviews the march past in slow and quick time"],["09:40","10:00","State Coordinator delivers closing ceremony address"],["10:00","10:20","His Excellency delivers his address and declares the orientation exercise closed"],["10:20","10:30","Three hearty cheers to His Excellency"],["10:30","10:40","NYSC/National Anthem"],["10:40","11:00","His Excellency departs, and others follow in reverse order"],["11:00","22:30","Distribution of posting letters"]]
   };
 
   /* Weekly menu, Sunday = 0 (official wording) */

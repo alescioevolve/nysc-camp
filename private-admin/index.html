@@ -162,6 +162,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--green-2);background:v
 .act .avatar{width:32px;height:32px;font-size:12.5px}
 .act b{font-size:14.5px}
 .act p{font-size:13.5px;color:var(--muted);margin-top:1px;line-height:1.4}
+.act-b{min-width:0;flex:1}
+.chg{margin:6px 0 0 16px;font-size:13.5px;line-height:1.45;color:var(--ink)}
+.chg li{margin-top:3px;overflow-wrap:anywhere}
+.more-chg summary{font-size:13px;font-weight:700;color:var(--green-2);cursor:pointer;margin-top:6px;min-height:32px;display:flex;align-items:center}
 
 /* Timetable: one line per item */
 .tl-top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
@@ -657,8 +661,11 @@ function noticeTab(){
 
 /* ── Account ── */
 function acctTab(){
+  if (!codeId && token) makeCodeId().then(() => { if (tab === "acct") render(); });
   return `<h2>Account</h2><p class="sub">You're signed in on this phone.</p>
     <div class="card acct"><span class="avatar">${esc($("#whoav").textContent)}</span><div><b>${esc(editor)}</b><span>Your name appears on every update you publish.</span></div></div>
+    <div class="card"><div class="meal-h">Access code ID: ${codeId ? esc(codeId) : "…"}</div>
+      <p class="tip">This short ID is recorded on every update you publish, so each change can be traced to your code. Tell the Camp Companion administrator which ID is yours. It doesn't reveal your code.</p></div>
     <div class="card"><div class="meal-h">Latest version</div>
       <p class="tip">If another admin has published since you opened this page, load their version before you edit.</p>
       <div class="stack"><button class="btn" id="reload">Load the latest version</button></div></div>
@@ -675,12 +682,15 @@ function acctTab(){
 let activity = null;
 async function loadActivity(){
   try {
-    const r = await fetch(`https://api.github.com/repos/${S.owner}/${S.repo}/commits?path=${S.path}&per_page=20&t=${Date.now()}`,
+    const r = await fetch(`https://api.github.com/repos/${S.owner}/${S.repo}/commits?path=${S.path}&per_page=50&t=${Date.now()}`,
       { cache: "no-store", headers: { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" } });
     if (!r.ok) throw 0;
     activity = (await r.json()).map(c => {
       const m = (c.commit.message || "").match(/^Update by (.+?): (.*)$/s);
-      return { who: m ? m[1] : "Administrator", what: m ? m[2].split("\n")[0] : "Schedule set up", when: c.commit.author.date };
+      const msg = c.commit.message || "";
+      return { who: m ? m[1] : "Administrator", what: m ? m[2].split("\n")[0] : "Schedule set up", when: c.commit.author.date,
+        lines: msg.split("\n").filter(l => l.startsWith("- ")).map(l => l.slice(2)),
+        code: (msg.match(/Access code ID: ([0-9A-F]{6})/) || [])[1] || "" };
     });
   } catch (e) { activity = false; }
   if (tab === "act") render();
@@ -690,8 +700,12 @@ function actTab(){
   if (activity === false) return `<h2>Activity</h2><div class="card empty">Couldn't load recent updates. Check your network and try again.<div class="stack"><button class="btn" id="reload-act">Try again</button></div></div>`;
   const when = iso => new Date(iso).toLocaleString("en-GB",{timeZone:"Africa/Lagos",weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true});
   const ini = n => n.split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0,2).toUpperCase();
-  return `<h2>Activity</h2><p class="sub">Every published update, newest first.</p>
-    <div class="card">${activity.length ? activity.map(a => `<div class="act"><span class="avatar">${esc(ini(a.who))}</span><div><b>${esc(a.who)}</b><p>${esc(a.what.replace(/;\s*/g, " · "))}<br>${esc(when(a.when))}</p></div></div>`).join("") : `<div class="empty">No updates published yet.</div>`}</div>`;
+  return `<h2>Activity</h2><p class="sub">Every published update, newest first, with exactly what changed. Each update shows the ID of the access code used, so it can be traced even if someone types another person's name.</p>
+    <div class="card">${activity.length ? activity.map(a => `<div class="act"><span class="avatar">${esc(ini(a.who))}</span><div class="act-b"><b>${esc(a.who)}</b><p>${esc(when(a.when))}${a.code ? ` · code ${esc(a.code)}` : ""}</p>
+      ${a.lines.length ? (a.lines.length > 4
+        ? `<ul class="chg">${a.lines.slice(0, 3).map(l => `<li>${esc(l)}</li>`).join("")}</ul><details class="more-chg"><summary>Show ${a.lines.length - 3} more</summary><ul class="chg">${a.lines.slice(3).map(l => `<li>${esc(l)}</li>`).join("")}</ul></details>`
+        : `<ul class="chg">${a.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>`)
+      : `<p>${esc(a.what.replace(/;\s*/g, " · "))}</p>`}</div></div>`).join("") : `<div class="empty">No updates published yet.</div>`}</div>`;
 }
 
 function render(){
@@ -768,6 +782,71 @@ document.addEventListener("change", e => {
 });
 
 /* ── Publish ── */
+/* ── Plain-language log of exactly what changed, written into every published update ── */
+const q = t => `"${String(t || "").trim() || "Untitled"}"`;
+const span12 = it => `${fmt12(it[0])} – ${fmt12(it[1])}`;
+function describe(old, now){
+  const out = [];
+  DATES.forEach(k => {
+    const o = old.days[k] || [], n = now.days[k] || [], key = x => JSON.stringify(x);
+    const N = new Set(n.map(key)), O = new Set(o.map(key));
+    let gone = o.filter(x => !N.has(key(x))), added = n.filter(x => !O.has(key(x)));
+    const pre = `${nice(k)} timetable:`;
+    /* pair an old and a new version of the same item (same name, or same start time) */
+    added = added.filter(a => {
+      const i = gone.findIndex(g => g[2] === a[2]) >= 0 ? gone.findIndex(g => g[2] === a[2]) : gone.findIndex(g => g[0] === a[0]);
+      if (i < 0) return true;
+      const g = gone.splice(i, 1)[0], bits = [];
+      if (g[0] !== a[0] || g[1] !== a[1]) bits.push(`time ${span12(g)} → ${span12(a)}`);
+      if (g[2] !== a[2]) bits.push(`renamed to ${q(a[2])}`);
+      if ((g[4] || "") !== (a[4] || "")) bits.push(`venue ${g[4] ? q(g[4]) : "none"} → ${a[4] ? q(a[4]) : "none"}`);
+      if ((g[3] || "") !== (a[3] || "")) bits.push(`note ${g[3] ? q(g[3]) : "none"} → ${a[3] ? q(a[3]) : "none"}`);
+      out.push(`${pre} changed ${q(g[2])}: ${bits.join("; ")}`);
+      return false;
+    });
+    added.forEach(a => out.push(`${pre} added ${q(a[2])} ${span12(a)}${a[4] ? " at " + a[4] : ""}`));
+    gone.forEach(g => out.push(`${pre} removed ${q(g[2])} ${span12(g)}`));
+  });
+  WD.forEach((d, w) => MEALS.forEach((m, i) => { const a = (old.menu[w] || [])[i], b = (now.menu[w] || [])[i];
+    if (a !== b) out.push(`Menu, ${d} ${m.toLowerCase()}: ${q(a)} → ${q(b)}`); }));
+  const fx = (f, ref) => `${f.sport} match #${f.no ?? "?"} (${resolveW(f.sport, f.a)} v ${resolveW(f.sport, f.b)})`;
+  const res = f => f.win === "a" || f.win === "b" ? `${f.sa ?? "–"}–${f.sb ?? "–"}, ${resolveW(f.sport, f[f.win])} wins` : (f.sa !== undefined && f.sa !== "" ? `${f.sa}–${f.sb}` : "no result");
+  if (old.fixtures.length === now.fixtures.length) now.fixtures.forEach((f, i) => { const o = old.fixtures[i]; if (same(f, o)) return;
+    const bits = [];
+    if ((o.sa ?? "") !== (f.sa ?? "") || (o.sb ?? "") !== (f.sb ?? "") || (o.win || "") !== (f.win || "")) bits.push(res(o) === "no result" ? `result entered: ${res(f)}` : res(f) === "no result" ? `result cleared (was ${res(o)})` : `result ${res(o)} → ${res(f)}`);
+    ["d","t","a","b","stage","sport","note","no"].forEach(k => { if ((o[k] ?? "") !== (f[k] ?? "")) bits.push(`${({d:"date",t:"time",a:"side A",b:"side B",no:"match number"})[k] || k} ${q(o[k])} → ${q(f[k])}`); });
+    out.push(`${fx(f)}: ${bits.join("; ")}`);
+  });
+  else out.push(`Fixtures list changed: ${old.fixtures.length} → ${now.fixtures.length} fixtures`);
+  new Set([...Object.keys(old.bestLosers || {}), ...Object.keys(now.bestLosers || {})]).forEach(sp => {
+    const a = (old.bestLosers || {})[sp] || [], b = (now.bestLosers || {})[sp] || [];
+    if (!same(a, b)) out.push(`${sp} best losers: ${b.filter(Boolean).map(x => "Platoon " + x).join(", ") || "cleared"}`);
+  });
+  const win = a => (a.to || a.from) === a.from
+    ? `${nice(a.from)}, ${a.fromT || a.toT ? `${a.fromT ? fmt12(a.fromT) : "start of day"} to ${a.toT ? fmt12(a.toT) : "end of day"}` : "all day"}`
+    : `${nice(a.from)}${a.fromT ? " " + fmt12(a.fromT) : ""} to ${nice(a.to)}${a.toT ? " " + fmt12(a.toT) : ""}`;
+  const O = Object.fromEntries((old.announcements || []).map(a => [a.id, a])), M = Object.fromEntries((now.announcements || []).map(a => [a.id, a]));
+  Object.values(M).forEach(a => { const o = O[a.id];
+    if (!o) return out.push(`Posted announcement ${q(a.title)}${a.urgent ? " (urgent)" : ""} as ${a.sign || "Camp Management"}, showing ${win(a)}`);
+    if (same(o, a)) return;
+    const bits = [];
+    if (o.title !== a.title) bits.push(`title ${q(o.title)} → ${q(a.title)}`);
+    if (o.body !== a.body) bits.push("message edited");
+    if (!!o.urgent !== !!a.urgent) bits.push(a.urgent ? "marked urgent" : "no longer urgent");
+    if ((o.sign || "") !== (a.sign || "")) bits.push(`posted as ${a.sign}`);
+    if (win(o) !== win(a)) bits.push(`now showing ${win(a)}`);
+    out.push(`Edited announcement ${q(a.title)}: ${bits.join("; ")}`);
+  });
+  Object.values(O).forEach(o => { if (!M[o.id]) out.push(`Deleted announcement ${q(o.title)}`); });
+  return out;
+}
+/* A short ID for the access code used, so every update can be traced to a code (the code itself is never shown) */
+let codeId = "";
+async function makeCodeId(){
+  try { const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+    codeId = [...new Uint8Array(h)].slice(0, 3).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase(); } catch (e) { codeId = ""; }
+}
+
 /* Two admins publishing at once: GitHub refuses the second publish because it was based on an older copy.
    We then load the newer copy and combine: whatever only one admin changed is kept from that admin.
    Only where both changed the same thing (same day's timetable, same match, same announcement) does the
@@ -815,7 +894,11 @@ async function publish(attempt = 0){
   const next = clone(work); next.updatedAt = new Date().toISOString(); next.updatedBy = editor;
   let retry = false;
   try {
-    const r = await gh("PUT", { message: `Update by ${editor}: ${ch.join("; ")}`, content: toB64(JSON.stringify(next, null, 1)), branch: S.branch, ...(sha ? { sha } : {}) });
+    if (!codeId) await makeCodeId();
+    const lines = describe(base, work);
+    const message = `Update by ${editor}: ${ch.join("; ")}\n\n` + lines.slice(0, 60).map(l => "- " + l).join("\n")
+      + (lines.length > 60 ? `\n- …and ${lines.length - 60} more changes` : "") + (codeId ? `\n\nAccess code ID: ${codeId}` : "");
+    const r = await gh("PUT", { message, content: toB64(JSON.stringify(next, null, 1)), branch: S.branch, ...(sha ? { sha } : {}) });
     if (r.status === 409 || r.status === 422) {
       /* Someone else published first. Load theirs and combine. */
       const g = await gh("GET"); if (!g.ok) throw new Error("reload " + g.status);
@@ -878,7 +961,7 @@ $("#lgform").addEventListener("submit", async e => {
   const name = $("#lname").value.trim(), code = $("#lcode").value.trim();
   if (!name || !code) { say("Enter your full name and access code.", "err", "#lmsg"); return; }
   const btn = $("#signin"); btn.disabled = true; btn.textContent = "Signing in…"; say("", "info", "#lmsg");
-  token = code; editor = name;
+  token = code; editor = name; codeId = "";
   const r = await connect();
   btn.disabled = false; btn.textContent = "Sign in";
   if (r !== "ok") {
