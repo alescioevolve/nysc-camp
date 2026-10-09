@@ -222,7 +222,7 @@ function now(){
 }
 function dayState(k,n){
   const rel=k<n.date?"past":k>n.date?"future":"today";
-  const items=T[k].map(([s,e,t,note,vn])=>{const S=toM(s),E=toM(e);
+  const items=T[k].map(([s,e,t,note,vn])=>{const S=toM(s),E=toM(e)+(CAMP.overnight(s,e)?1440:0);
     const st=rel==="past"?"done":rel==="future"?"future":E<=n.min?"done":S<=n.min?"current":"future";
     return{S,E,t,note,vn,st}});
   return{items,cur:items.find(i=>i.st==="current"),next:items.find(i=>i.st==="future")};

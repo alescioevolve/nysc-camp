@@ -405,7 +405,7 @@ let DISMISSED = []; try { DISMISSED = JSON.parse(localStorage.getItem("camp-dism
 const CLOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
 const ago = iso => {
   const t = Date.parse(iso || ""); if (isNaN(t)) return "";
-  const m = Math.floor((Date.now() + OFFSET - t) / 60000);
+  const m = Math.floor((nowMs() - t) / 60000);
   if (m < 1) return "now"; if (m < 60) return `${m}m ago`; if (m < 24*60) return `${Math.floor(m/60)}h ago`;
   return stamp(iso).replace(/,.*$/, "");
 };
@@ -425,7 +425,7 @@ const noticeHTML = (a, n) => `<section class="nt-card ${a.urgent?"urgent":""}" r
 const stamp = iso => { try { return new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true}).format(new Date(iso)); } catch (e) { return ""; } };
 
 const $ = s => document.querySelector(s);
-const fmt = m => { let h = Math.floor(m/60)%24, mi = m%60, ap = h>=12?"PM":"AM"; h = h%12||12; return `${h}:${String(mi).padStart(2,"0")} ${ap}`; };
+const fmt = m => { m = ((m % 1440) + 1440) % 1440; let h = Math.floor(m/60)%24, mi = m%60, ap = h>=12?"PM":"AM"; h = h%12||12; return `${h}:${String(mi).padStart(2,"0")} ${ap}`; };
 const fmtS = m => { let h = Math.floor(m/60)%24, mi = m%60; h = h%12||12; return `${h}:${String(mi).padStart(2,"0")}`; };
 const dur = m => m < 60 ? `${m} min` : `${Math.floor(m/60)}h ${String(m%60).padStart(2,"0")}m`;
 const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -442,10 +442,12 @@ const ROUTINE = /reveille|anthems|attendance|breakfast|lunch|dinner|lights? out|
 let OFFSET = 0;
 const qp = new URLSearchParams(location.search).get("t");
 if (qp) { const ep = Date.parse(qp+":00+01:00"); if (!isNaN(ep)) OFFSET = ep - Date.now(); }
+/* Real time: the phone's clock, corrected if the server says it's off (ignored in ?t= test mode) */
+const nowMs = () => Date.now() + (qp ? OFFSET : (CAMP.clock.skew || 0));
 function now(){
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",hourCycle:"h23",
     year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"})
-    .formatToParts(new Date(Date.now()+OFFSET)).map(x=>[x.type,x.value]));
+    .formatToParts(new Date(nowMs())).map(x=>[x.type,x.value]));
   return { date:`${p.year}-${p.month}-${p.day}`, min:((+p.hour)%24)*60+(+p.minute), sec:+p.second };
 }
 
@@ -476,8 +478,12 @@ function paintDays(n){
 
 function state(date, n){
   const rel = date < n.date ? "past" : date > n.date ? "future" : "today";
-  const items = T[date].map(([s,e,t,note,ven]) => {
-    const S = toM(s), E = toM(e);
+  const span = ([s,e]) => { const S = toM(s); let E = toM(e); if (CAMP.overnight(s, e)) E += 1440; return [S, E]; };
+  const prevK = DAYS[DAYS.indexOf(date) - 1];
+  const carry = rel === "today" && prevK ? T[prevK].filter(([s,e]) => CAMP.overnight(s, e) && n.min < toM(e))
+    .map(([s,e,t,note,ven]) => [s, e, t, note, ven, true]) : [];
+  const items = [...carry, ...T[date]].map(([s,e,t,note,ven,fromYesterday]) => {
+    let [S, E] = span([s,e]); if (fromYesterday) { S -= 1440; E -= 1440; }
     const st = rel==="past" ? "done" : rel==="future" ? "up" : E <= n.min ? "done" : S <= n.min ? "cur" : "up";
     return {s:S, e:E, t, note, ven, st};
   });
@@ -496,7 +502,8 @@ function render(){
   paintDays(n);
   $("#clock").innerHTML = `${fmtS(n.min)}:${String(n.sec).padStart(2,"0")}<span class="ap">${n.min>=720?"PM":"AM"}</span>`;
   const idx = DAYS.indexOf(n.date);
-  $("#dayno").textContent = idx >= 0 ? `Day ${idx+1} of ${DAYS.length}` : "Lagos time";
+  $("#dayno").textContent = (idx >= 0 ? `Day ${idx+1} of ${DAYS.length}` : "Lagos time") + (!qp && CAMP.clock.skew ? " · time corrected" : "");
+  $("#dayno").title = !qp && CAMP.clock.skew ? "Your phone's clock is off, so the app is using the correct camp time." : "";
   const up = META.updatedAt ? `Schedule updated ${stamp(META.updatedAt)}${META.updatedBy ? " by " + META.updatedBy : ""}` : "Showing the official printed timetable";
   if ($("[data-updated]").textContent !== up) $("[data-updated]").textContent = up;
   const onSports = location.hash === "#sports";

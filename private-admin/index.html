@@ -442,11 +442,19 @@ document.addEventListener("change", e => {
 const toM = t => { if (!/^\d\d:\d\d$/.test(t||"")) return NaN; const [h,m] = t.split(":").map(Number); return h*60+m; };
 function sortDay(){ work.days[day].sort((x,y) => (x[0]||"").localeCompare(y[0]||"")); }
 /* Problems with an item, given the items before it (sorted by start) */
-function issue(it, prevEnd){
+/* An evening item may run past midnight (e.g. 10 PM to 1 AM). Anything else ending before it starts is a mistake. */
+const overnight = it => CAMP.overnight(it[0] || "00:00", it[1] || "00:00");
+const endM = it => toM(it[1]) + (overnight(it) ? 1440 : 0);
+function timeProblem(it){
   const st = toM(it[0]), e = toM(it[1]);
-  if (!String(it[2] || "").trim()) return "Needs a name.";
   if (isNaN(st) || isNaN(e)) return "Set both start and end times.";
-  if (e <= st) return "Ends before it starts.";
+  if (e <= st && !overnight(it)) return "The end time must be after the start time. Events can only run past midnight if they start after 6 PM and end by 6 AM.";
+  return "";
+}
+function issue(it, prevEnd){
+  const st = toM(it[0]), e = endM(it);
+  if (!String(it[2] || "").trim()) return "Needs a name.";
+  const tp = timeProblem(it); if (tp) return tp.split(". ")[0] + ".";
   if (st < prevEnd) return "Overlaps the item before it.";
   return "";
 }
@@ -467,13 +475,13 @@ function timeTab(){
   const removed = Math.max(0, was.length - items.length);   // an edited item isn't counted as removed
   let prevEnd = -1, nowShown = false;
   const rows = items.map((it, i) => {
-    const w = issue(it, prevEnd); const st = toM(it[0]), e = toM(it[1]); if (!isNaN(e)) prevEnd = Math.max(prevEnd, e);
+    const w = issue(it, prevEnd); const st = toM(it[0]), e = endM(it); if (!isNaN(e)) prevEnd = Math.max(prevEnd, e);
     const past = isToday && !isNaN(e) && e <= nowM, now = isToday && !nowShown && st <= nowM && nowM < e;
     if (now) nowShown = true;
     const ch = !seen.has(JSON.stringify(it));
     const meta = [it[4], it[3]].filter(Boolean).join(" · ");
     return `<button class="tl-row ${past?"past":""} ${now?"now":""} ${w?"bad":""}" data-edit="${i}" ${now?"data-now":""}>
-      <span class="tm">${fmt12(it[0]).replace(/ (AM|PM)$/,"")}<small>${fmt12(it[1])}</small></span>
+      <span class="tm">${fmt12(it[0]).replace(/ (AM|PM)$/,"")}<small>${fmt12(it[1])}${overnight(it) ? " +1" : ""}</small></span>
       <span><span class="nm">${esc(it[2] || "Untitled item")}</span>${meta?`<span class="mt">${esc(meta)}</span>`:""}${w?`<span class="wr">${esc(w)}</span>`:""}</span>
       <span class="rt">${now?`<span class="pill">NOW</span>`:""}${ch?`<span class="edot" title="Changed since the last publish" aria-label="Changed"></span>`:""}›</span></button>`;
   }).join("");
@@ -522,8 +530,7 @@ function editItem(i){
   d.querySelector("#ecancel").onclick = () => closeSheet();
   d.querySelector("#esave").onclick = () => {
     const v = [0,1,2,3,4].map(k => d.querySelector("#e" + k).value.trim());
-    const st = toM(v[0]), e = toM(v[1]);
-    const w = !v[2] ? "Give it a name." : isNaN(st) || isNaN(e) ? "Set both start and end times." : e <= st ? "The end time must be after the start time." : "";
+    const w = !v[2] ? "Give it a name." : timeProblem(v);
     if (w) { d.querySelector("#ew").textContent = w; return; }
     if (isNew) items.push(v); else items[i] = v;
     sortDay(); closeSheet(); render();
@@ -761,27 +768,80 @@ document.addEventListener("change", e => {
 });
 
 /* ── Publish ── */
-async function publish(){
+/* Two admins publishing at once: GitHub refuses the second publish because it was based on an older copy.
+   We then load the newer copy and combine: whatever only one admin changed is kept from that admin.
+   Only where both changed the same thing (same day's timetable, same match, same announcement) does the
+   newer published version win, and the admin is told exactly which parts to check. */
+function combine(old, mine, theirs){
+  const clashes = [], pick = (o, m, t, label) => {
+    if (same(m, o)) return t; if (same(t, o) || same(m, t)) return m;
+    clashes.push(label); return t;
+  };
+  const out = clone(theirs);
+  const days = new Set([...Object.keys(old.days), ...Object.keys(mine.days), ...Object.keys(theirs.days)]);
+  /* Within one day, combine item by item: take their list, drop what I removed or changed, add what I added or changed.
+     Only if they also changed or removed an item I touched is it a real clash. */
+  const mergeDay = (o = [], m = [], t = [], label) => {
+    if (same(m, o)) return t; if (same(t, o) || same(m, t)) return m;
+    const key = x => JSON.stringify(x), O = new Set(o.map(key)), M = new Set(m.map(key)), Tk = new Set(t.map(key));
+    const rem = o.filter(x => !M.has(key(x))), add = m.filter(x => !O.has(key(x)));
+    if (rem.some(x => !Tk.has(key(x)))) { clashes.push(label); return t; }
+    const R = new Set(rem.map(key));
+    return [...t.filter(x => !R.has(key(x))), ...add.filter(x => !Tk.has(key(x)))].sort((x, y) => (x[0] || "").localeCompare(y[0] || ""));
+  };
+  days.forEach(k => { const v = mergeDay(old.days[k], mine.days[k], theirs.days[k], `the same item on the ${nice(k)} timetable`); if (v && v.length) out.days[k] = clone(v); else if (theirs.days[k]) out.days[k] = []; });
+  out.menu = theirs.menu.map((row, w) => clone(pick(old.menu[w], mine.menu[w], row, `the ${WD[w]} menu`)));
+  if (old.fixtures.length === mine.fixtures.length && mine.fixtures.length === theirs.fixtures.length)
+    out.fixtures = theirs.fixtures.map((f, i) => clone(pick(old.fixtures[i], mine.fixtures[i], f, `${f.sport} match #${f.no ?? i + 1}`)));
+  else out.fixtures = clone(pick(old.fixtures, mine.fixtures, theirs.fixtures, "the fixtures list"));
+  const bl = {}, sp = new Set([...Object.keys(old.bestLosers || {}), ...Object.keys(mine.bestLosers || {}), ...Object.keys(theirs.bestLosers || {})]);
+  sp.forEach(k => { const v = pick((old.bestLosers || {})[k], (mine.bestLosers || {})[k], (theirs.bestLosers || {})[k], `${k} best losers`); if (v) bl[k] = clone(v); });
+  out.bestLosers = bl;
+  const by = list => Object.fromEntries((list || []).map(a => [a.id, a]));
+  const O = by(old.announcements), M = by(mine.announcements), T = by(theirs.announcements);
+  const ids = [...new Set([...(theirs.announcements || []), ...(mine.announcements || [])].map(a => a.id))];
+  out.announcements = ids.map(id => pick(O[id], M[id], T[id], `the announcement "${(M[id] || T[id] || O[id]).title || "Untitled"}"`)).filter(Boolean).map(clone);
+  return { merged: out, clashes };
+}
+
+async function publish(attempt = 0){
   const ch = changes();
   if (!ch.length || !token || !editor) return;
-  const bad = DATES.find(k => work.days[k].some((it, i, a) => { const s = toM(it[0]), e = toM(it[1]); return isNaN(s) || isNaN(e) || e <= s || !String(it[2]).trim(); }));
-  if (bad) { tab = "time"; day = bad; render(); say(`Fix the highlighted items on ${nice(bad)} first. Each needs a start, an end after it, and a name.`, "err"); return; }
+  const bad = DATES.find(k => work.days[k].some(it => !!timeProblem(it) || !String(it[2]).trim()));
+  if (bad) { tab = "time"; day = bad; render(); say(`Fix the highlighted items on ${nice(bad)} first. Each needs a name and a start and end time.`, "err"); return; }
   const badN = work.announcements.find(a => !String(a.title || "").trim() || `${a.to || a.from} ${a.toT || "24:00"}` <= `${a.from} ${a.fromT || "00:00"}`);
   if (badN) { tab = "notice"; render(); say(`Check the announcement "${badN.title || "Untitled"}". It needs a title, and its end must be after its start.`, "err"); return; }
   const btn = $("#publish"); btn.disabled = true; btn.textContent = "Publishing…";
   const next = clone(work); next.updatedAt = new Date().toISOString(); next.updatedBy = editor;
+  let retry = false;
   try {
     const r = await gh("PUT", { message: `Update by ${editor}: ${ch.join("; ")}`, content: toB64(JSON.stringify(next, null, 1)), branch: S.branch, ...(sha ? { sha } : {}) });
-    if (r.status === 409 || r.status === 422) { say("Another admin published while you were editing. Your changes are kept on this phone. Go to Account, load the latest version, then make your changes again.", "err"); return; }
+    if (r.status === 409 || r.status === 422) {
+      /* Someone else published first. Load theirs and combine. */
+      const g = await gh("GET"); if (!g.ok) throw new Error("reload " + g.status);
+      const j = await g.json(); const theirs = JSON.parse(fromB64(j.content));
+      if (!CAMP.valid(theirs)) throw new Error("bad copy");
+      const { merged, clashes } = combine(base, work, theirs);
+      const who = theirs.updatedBy && theirs.updatedBy !== editor ? theirs.updatedBy : "Another admin";
+      base = theirs; sha = j.sha; work = merged; render();
+      if (clashes.length) {
+        say(`${who} published while you were editing. Your other changes have been combined with theirs, but you both changed ${clashes.join(", ")}. Their version is kept there. Check it, redo your change if it's still needed, then tap Publish.`, "err");
+        return;
+      }
+      if (!changes().length) { say(`${who} published the same changes you made. Nothing else to publish.`, "ok"); return; }
+      if (attempt < 2) { retry = true; return; }
+      say(`${who} keeps publishing at the same time. Your changes are combined and kept here. Tap Publish again.`, "err"); return;
+    }
     if (r.status === 401 || r.status === 403) { say("Your access code no longer works. It may have expired. Contact the Camp Companion administrator for a new one.", "err"); return; }
     if (!r.ok) throw new Error("server " + r.status);
     const j = await r.json(); sha = j.content.sha; base = next; work = clone(next);
     store.del("camp-admin-draft"); activity = null;
     fetch(CAMP.PURGE, { mode: "no-cors" }).catch(() => {});   // refresh the backup mirror too
-    say("Published. Corps members will see the update within about 5 minutes.", "ok");
+    say(attempt ? "Published. Another admin published at the same time, so your changes were combined with theirs. Corps members will see both within about 2 minutes."
+                : "Published. Corps members will see the update within about 2 minutes.", "ok");
   } catch (e) {
     say("Couldn't publish. Your changes are still on this phone. Check your network and try again.", "err");
-  } finally { btn.textContent = "Publish"; refreshBar(); }
+  } finally { btn.textContent = "Publish"; refreshBar(); if (retry) publish(attempt + 1); }
 }
 
 window.addEventListener("beforeunload", e => { if (changes().length) { e.preventDefault(); e.returnValue = ""; } });

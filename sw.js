@@ -1,6 +1,6 @@
 /* Offline support: everything is cached on first visit, so the app opens
    with no network. Bump VERSION whenever you change any file. */
-const VERSION = "camp-v17";
+const VERSION = "camp-v18";
 const FILES = [
   "./", "./index.html", "./data.js", "./pwa.js",
   "./app/", "./app/index.html", "./app/manifest.webmanifest",
@@ -34,7 +34,7 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
   /* Live camp data is never cached here: the app keeps its own last copy and must always see the newest one */
-  if (url.pathname.includes("/live/")) return;
+  if (url.pathname.includes("/live/") || url.pathname.includes("/api/")) return;
   if (req.mode === "navigate") {
     e.respondWith(caches.open(VERSION).then(cache => {
       const net = fetch(req).then(res => { if (res && res.ok) cache.put(req, res.clone()); return res; });

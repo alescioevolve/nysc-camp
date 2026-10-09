@@ -265,6 +265,7 @@
   const PURGE = `https://purge.jsdelivr.net/gh/${SOURCE.owner}/${SOURCE.repo}@${SOURCE.branch}/${SOURCE.path}`;
   /* Same-site copy (served by the host's proxy, e.g. Vercel). Helps on networks that can't reach GitHub. */
   const HERE = (() => { try { return new URL("live/camp.json", document.currentScript.src).href; } catch (e) { return ""; } })();
+  const TIME = (() => { try { return new URL("api/time", document.currentScript.src).href; } catch (e) { return ""; } })();
   const announcements = [];
   const meta = { updatedAt: "", updatedBy: "" };
   const keys = Object.keys(days).sort();
@@ -301,16 +302,42 @@
   } catch (e) {}
 
   /* 2. Latest copy, when there is signal. Tries each route in turn; the first good one wins. */
-  function get(url) {
+  /* shared = the site's own copy, which every phone shares, so it keeps its plain address */
+  function get(url, shared) {
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
     const timer = ctl && setTimeout(() => ctl.abort(), 8000);
-    return fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store", signal: ctl && ctl.signal })
+    return fetch(shared ? url : url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store", signal: ctl && ctl.signal })
       .then(r => r.ok ? r.json() : null).catch(() => null).finally(() => timer && clearTimeout(timer));
   }
-  /* Ask every route at once and keep the newest copy, so one slow or out-of-date route can't hold back an update */
+  /* The site's shared copy first (fresh within 30 s, and it spares GitHub). If that fails,
+     ask GitHub and the backup CDN together and keep the newer copy. */
   async function latest() {
-    const got = await Promise.all([HERE, RAW, CDN].filter(Boolean).map(get));
+    if (HERE) { const c = await get(HERE, true); if (valid(c)) return c; }
+    const got = await Promise.all([RAW, CDN].map(u => get(u)));
     return got.filter(valid).sort((x, y) => (y.updatedAt || "").localeCompare(x.updatedAt || ""))[0] || null;
+  }
+
+  /* ── Phone clock check ──
+     Phones set to the wrong date or time would show the wrong "now". Compare with the server
+     and keep the difference (saved, so it still works offline). Small differences are ignored. */
+  const clock = { skew: 0, checked: 0 };
+  try { const c = JSON.parse(localStorage.getItem("camp-clock") || "null"); if (c && typeof c.skew === "number") Object.assign(clock, c); } catch (e) {}
+  function syncClock() {
+    if (!TIME || typeof fetch !== "function") return;
+    const t0 = Date.now();
+    fetch(TIME, { cache: "no-store" }).then(async r => {
+      const t1 = Date.now(); if (t1 - t0 > 10000) return;            // too slow to trust
+      let srv = null;
+      try { if (r.ok) { const j = await r.json(); if (typeof j.now === "number") srv = j.now; } } catch (e) {}
+      if (srv === null) { const d = Date.parse(r.headers.get("date") || ""); if (!isNaN(d)) srv = d + 500; }
+      if (srv === null) return;
+      const diff = srv - (t0 + t1) / 2;
+      const was = clock.skew;
+      clock.skew = Math.abs(diff) > 60000 ? Math.round(diff) : 0;
+      clock.checked = Date.now();
+      try { localStorage.setItem("camp-clock", JSON.stringify(clock)); } catch (e) {}
+      if (Math.abs(clock.skew - was) > 1000) window.dispatchEvent(new Event("camp:update"));
+    }).catch(() => {});
   }
   function refresh() {
     if (typeof fetch !== "function") return Promise.resolve(false);
@@ -331,7 +358,11 @@
   } else if (!/\/private-admin\//.test(location.pathname)) {
     /* Check on open, every 2 minutes while on screen, and the moment the app comes back to the front */
     let last = 0;
-    const check = () => { if (document.visibilityState === "visible" && Date.now() - last > 20000) { last = Date.now(); refresh(); } };
+    const check = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 20000) return;
+      last = Date.now(); refresh();
+      if (Date.now() - clock.checked > 30 * 60 * 1000) syncClock();
+    };
     check();
     setInterval(check, 2 * 60 * 1000);
     window.addEventListener("online", check);
@@ -358,6 +389,7 @@
     sports: ["Football", "Volleyball", "Badminton (singles)", "Athletics"],
     stages: ["Round 1", "Quarter-final", "Semi-final", "Third place", "Final", "Heats", "Heats final"],
     platoons: ["1","2","3","4","5","6","7","8","9","10"],
-    SOURCE, RAW, PURGE, PREVIEW, BUILT_IN, apply, exportContent, refresh, valid
+    SOURCE, RAW, PURGE, PREVIEW, BUILT_IN, apply, exportContent, refresh, valid,
+    clock, overnight: (s, e) => { const a = toM(s), b = toM(e); return b <= a && a >= 18 * 60 && b <= 6 * 60; }
   };
 })();
