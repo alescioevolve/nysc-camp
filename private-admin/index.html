@@ -61,7 +61,8 @@ h2{font-size:19px;font-weight:700;letter-spacing:-.015em;margin:4px 2px 2px}
 .sub{font-size:13.5px;color:var(--muted);margin:0 2px 12px}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+input,select,textarea{min-width:0;max-width:100%}
 .row3{display:grid;grid-template-columns:1.1fr .75fr 1.35fr;gap:8px}
 .row,.row3{margin-top:8px}
 .row>label.f,.row3>label.f{margin-top:0}
@@ -161,6 +162,47 @@ input:focus,select:focus,textarea:focus{border-color:var(--green-2);background:v
 .act .avatar{width:32px;height:32px;font-size:12.5px}
 .act b{font-size:14.5px}
 .act p{font-size:13.5px;color:var(--muted);margin-top:1px;line-height:1.4}
+
+/* Timetable: one line per item */
+.tl-top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.jump{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:700;color:var(--green-2);cursor:pointer;margin-bottom:12px}
+.tl{padding:4px 0;overflow:hidden}
+.tl-row{display:grid;grid-template-columns:62px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;min-height:56px;padding:8px 12px 8px 14px;border:0;border-top:1px solid var(--line);background:none;text-align:left;cursor:pointer;color:var(--ink)}
+.tl-row:first-child{border-top:0}
+.tl-row:active{background:var(--bg)}
+.tl-row .tm{font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.tl-row .tm small{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.tl-row .nm{font-size:15px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.tl-row .mt{display:block;font-size:12.5px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.tl-row .rt{display:flex;align-items:center;gap:6px;color:var(--faint);font-size:18px}
+.tl-row.past{opacity:.5}
+.tl-row.now{background:var(--green-soft);box-shadow:inset 4px 0 0 var(--green-2)}
+.pill{font-size:10.5px;font-weight:800;letter-spacing:.06em;padding:3px 7px;border-radius:99px;background:var(--green-2);color:var(--surface)}
+.edot{width:9px;height:9px;border-radius:50%;background:var(--alert);flex:0 0 auto}
+.tl-row.bad{box-shadow:inset 4px 0 0 var(--alert)}
+.tl-row .wr{display:block;font-size:12px;font-weight:700;color:var(--alert);margin-top:2px}
+.changes{font-size:13px;font-weight:600;color:var(--alert);margin:-4px 2px 10px}
+
+/* Pop-up sheet, confirm dialog, undo toast */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(10,18,14,.45);display:flex;align-items:flex-end;justify-content:center;animation:fade .15s ease-out}
+.scrim.center{align-items:center;padding:20px}
+.sheet{width:100%;max-width:640px;max-height:92vh;overflow:auto;background:var(--surface);border-radius:22px 22px 0 0;padding:8px 16px calc(16px + env(safe-area-inset-bottom));animation:up .2s ease-out}
+.sheet .grab{width:40px;height:5px;border-radius:99px;background:var(--line);margin:4px auto 10px}
+.sheet h3,.dialog h3{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.sheet .sub{margin:2px 0 12px}
+.sheet-f{display:flex;align-items:center;gap:8px;margin-top:16px}
+.sheet-f .del{margin-right:auto;font-size:14.5px}
+.dialog{width:100%;max-width:360px;background:var(--surface);border-radius:20px;padding:20px 18px 14px;animation:pop .15s ease-out}
+.dialog p{font-size:14.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.dialog .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.btn.danger{background:#B42318;border-color:#B42318;color:#fff}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:30;width:calc(100% - 32px);max-width:480px;display:flex;align-items:center;gap:12px;background:var(--ink);color:var(--bg);border-radius:14px;padding:6px 6px 6px 16px;font-size:14.5px;font-weight:500;box-shadow:0 10px 26px rgba(0,0,0,.25);animation:up .2s ease-out}
+.toast span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast button{min-height:42px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:#7FE0A8;font-weight:800;font-size:14.5px;cursor:pointer}
+@keyframes up{from{transform:translateY(24px);opacity:0}}
+.toast{animation-name:tup}@keyframes tup{from{transform:translate(-50%,24px);opacity:0}}
+@keyframes fade{from{opacity:0}}@keyframes pop{from{transform:scale(.96);opacity:0}}
+body.locked{overflow:hidden}
 </style>
 </head>
 <body>
@@ -388,51 +430,133 @@ function setPath(p, v){
 document.addEventListener("input", e => {
   const p = e.target.dataset && e.target.dataset.p; if (!p) return;
   setPath(p, e.target.type === "checkbox" ? e.target.checked : e.target.value);
-  if (p.startsWith("d|")) validateDay();
   if (p.startsWith("a|") && e.target.type === "checkbox") e.target.closest(".card").classList.toggle("urgent-on", e.target.checked);
   refreshBar();
 });
 document.addEventListener("change", e => {
   const p = e.target.dataset && e.target.dataset.p;
-  if (p && p.startsWith("d|") && /\|[01]$/.test(p)) { sortDay(); render(); }   // re-order after a time changes
+  if (p && p.startsWith("a|") && /\|(from|to|fromT|toT)$/.test(p)) render();   // refresh "Showing now / Scheduled"
 });
 
 /* ── Timetable ── */
 const toM = t => { if (!/^\d\d:\d\d$/.test(t||"")) return NaN; const [h,m] = t.split(":").map(Number); return h*60+m; };
 function sortDay(){ work.days[day].sort((x,y) => (x[0]||"").localeCompare(y[0]||"")); }
-function validateDay(){
-  const items = work.days[day]; let prevEnd = -1;
-  items.forEach((it, i) => {
-    const card = document.querySelector(`[data-item="${i}"]`); if (!card) return;
-    const s = toM(it[0]), e = toM(it[1]); const w = card.querySelector(".warn");
-    let msg = "";
-    if (isNaN(s) || isNaN(e)) msg = "Set both start and end times.";
-    else if (e <= s) msg = "End time must be after the start time.";
-    else if (s < prevEnd) msg = "Overlaps the item before it.";
-    if (!isNaN(e)) prevEnd = Math.max(prevEnd, e);
-    w.textContent = msg; card.classList.toggle("bad", !!msg);
-  });
+/* Problems with an item, given the items before it (sorted by start) */
+function issue(it, prevEnd){
+  const st = toM(it[0]), e = toM(it[1]);
+  if (!String(it[2] || "").trim()) return "Needs a name.";
+  if (isNaN(st) || isNaN(e)) return "Set both start and end times.";
+  if (e <= st) return "Ends before it starts.";
+  if (st < prevEnd) return "Overlaps the item before it.";
+  return "";
+}
+const fmt12 = t => { const m = toM(t); if (isNaN(m)) return "--:--"; let h = Math.floor(m/60), ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return `${h}:${String(m%60).padStart(2,"0")} ${ap}`; };
+function lagosMin(){
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",hourCycle:"h23",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return (+p.hour % 24) * 60 + (+p.minute);
 }
 function chips(sel, cur, fn, changed){
   return `<div class="days">${DATES.map(k => `<button class="chip ${k===cur?"on":""} ${changed(k)?"ch":""}" data-${sel}="${k}"><small>${WD[wd(k)].slice(0,3)}</small><b>${dO(k).getUTCDate()}</b></button>`).join("")}</div>`;
 }
+let jumpNow = true;   // scroll to the current item next time the timetable opens on today
 function timeTab(){
-  const items = work.days[day];
+  const items = work.days[day], was = base.days[day] || [];
+  const isToday = day === lagosToday(), nowM = lagosMin();
+  const seen = new Set(was.map(x => JSON.stringify(x)));
+  const edited = items.filter(x => !seen.has(JSON.stringify(x))).length;
+  const removed = Math.max(0, was.length - items.length);   // an edited item isn't counted as removed
+  let prevEnd = -1, nowShown = false;
+  const rows = items.map((it, i) => {
+    const w = issue(it, prevEnd); const st = toM(it[0]), e = toM(it[1]); if (!isNaN(e)) prevEnd = Math.max(prevEnd, e);
+    const past = isToday && !isNaN(e) && e <= nowM, now = isToday && !nowShown && st <= nowM && nowM < e;
+    if (now) nowShown = true;
+    const ch = !seen.has(JSON.stringify(it));
+    const meta = [it[4], it[3]].filter(Boolean).join(" · ");
+    return `<button class="tl-row ${past?"past":""} ${now?"now":""} ${w?"bad":""}" data-edit="${i}" ${now?"data-now":""}>
+      <span class="tm">${fmt12(it[0]).replace(/ (AM|PM)$/,"")}<small>${fmt12(it[1])}</small></span>
+      <span><span class="nm">${esc(it[2] || "Untitled item")}</span>${meta?`<span class="mt">${esc(meta)}</span>`:""}${w?`<span class="wr">${esc(w)}</span>`:""}</span>
+      <span class="rt">${now?`<span class="pill">NOW</span>`:""}${ch?`<span class="edot" title="Changed since the last publish" aria-label="Changed"></span>`:""}›</span></button>`;
+  }).join("");
+  const chg = [edited && `${edited} edited`, removed && `${removed} removed`].filter(Boolean).join(" · ");
   return `${chips("day", day, null, k => !same(work.days[k], base.days[k]))}
-    <h2>${WD[wd(day)]}, ${dO(day).getUTCDate()} ${MO[dO(day).getUTCMonth()]}</h2>
-    <p class="sub">${items.length} items. Times re-order automatically. Evening events go here too, with their venue.</p>
-    ${items.map((it, i) => `<div class="card" data-item="${i}">
-      <div class="it-head"><b>Item ${i+1}</b><button class="del" data-del-item="${i}">Remove</button></div>
-      <div class="row">
-        <label class="f"><span>Starts</span><input type="time" value="${esc(it[0])}" data-p="d|${day}|${i}|0"></label>
-        <label class="f"><span>Ends</span><input type="time" value="${esc(it[1])}" data-p="d|${day}|${i}|1"></label>
-      </div>
-      <label class="f"><span>Activity</span><input type="text" value="${esc(it[2])}" data-p="d|${day}|${i}|2" placeholder="e.g. Skills Acquisition Training"></label>
-      <label class="f"><span>Note (optional)</span><input type="text" value="${esc(it[3])}" data-p="d|${day}|${i}|3" placeholder="e.g. Theme, dress code or reminder"></label>
-      <label class="f"><span>Venue (optional)</span><input type="text" value="${esc(it[4])}" data-p="d|${day}|${i}|4" placeholder="e.g. Parade Ground"></label>
-      <div class="warn"></div>
-    </div>`).join("")}
+    <div class="tl-top"><div><h2>${WD[wd(day)]}, ${dO(day).getUTCDate()} ${MO[dO(day).getUTCMonth()]}</h2>
+      <p class="sub">${items.length} items · tap one to change it${edited || removed ? ` · <span style="color:var(--alert)">●</span> changed` : ""}</p></div>${isToday?`<button class="jump" data-jump>Jump to now</button>`:""}</div>
+    ${chg ? `<p class="changes">${chg} since the last publish</p>` : ""}
+    <div class="card tl">${rows || `<div class="empty">Nothing on this day yet.</div>`}</div>
     <button class="btn full" data-add-item>+ Add an item to ${nice(day)}</button>`;
+}
+
+/* ── Pop-up editor for one timetable item ── */
+let sheetPushed = false;
+function openSheet(html){
+  closeOverlay("#sheet");
+  const d = document.createElement("div"); d.className = "scrim"; d.id = "sheet";
+  d.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  document.body.appendChild(d); document.body.classList.add("locked");
+  d.addEventListener("click", e => { if (e.target === d) closeSheet(); });
+  history.pushState({ sheet: 1 }, ""); sheetPushed = true;
+  return d;
+}
+function closeOverlay(sel){ const el = $(sel); if (el) el.remove(); if (!$(".scrim")) document.body.classList.remove("locked"); }
+function closeSheet(fromBack){
+  if (!$("#sheet")) return;
+  closeOverlay("#sheet");
+  if (sheetPushed && !fromBack) { sheetPushed = false; history.back(); } else sheetPushed = false;
+}
+window.addEventListener("popstate", () => { if ($("#confirm")) { closeOverlay("#confirm"); } if ($("#sheet")) closeSheet(true); });
+
+function editItem(i){
+  const isNew = i === null, items = work.days[day];
+  const last = items[items.length - 1];
+  const it = isNew ? [last ? last[1] : "09:00", "", "", "", ""] : items[i].slice();
+  const d = openSheet(`<div class="grab"></div><h3>${isNew ? "New item" : "Change item"}</h3><p class="sub">${nice(day)}</p>
+    <div class="row"><label class="f"><span>Starts</span><input type="time" id="e0" value="${esc(it[0])}"></label>
+      <label class="f"><span>Ends</span><input type="time" id="e1" value="${esc(it[1])}"></label></div>
+    <label class="f"><span>Activity</span><input type="text" id="e2" value="${esc(it[2])}" placeholder="e.g. Skills Acquisition Training"></label>
+    <label class="f"><span>Venue (optional)</span><input type="text" id="e4" value="${esc(it[4] || "")}" placeholder="e.g. Parade Ground"></label>
+    <label class="f"><span>Note (optional)</span><input type="text" id="e3" value="${esc(it[3] || "")}" placeholder="e.g. Theme, dress code or reminder"></label>
+    <div class="warn" id="ew"></div>
+    <div class="sheet-f">${isNew ? "" : `<button class="del" id="eremove">Remove</button>`}
+      <button class="btn ghost" id="ecancel">Cancel</button><button class="btn primary" id="esave">${isNew ? "Add" : "Save"}</button></div>`);
+  if (isNew) setTimeout(() => d.querySelector("#e2").focus(), 250);
+  d.querySelector("#ecancel").onclick = () => closeSheet();
+  d.querySelector("#esave").onclick = () => {
+    const v = [0,1,2,3,4].map(k => d.querySelector("#e" + k).value.trim());
+    const st = toM(v[0]), e = toM(v[1]);
+    const w = !v[2] ? "Give it a name." : isNaN(st) || isNaN(e) ? "Set both start and end times." : e <= st ? "The end time must be after the start time." : "";
+    if (w) { d.querySelector("#ew").textContent = w; return; }
+    if (isNew) items.push(v); else items[i] = v;
+    sortDay(); closeSheet(); render();
+  };
+  const rm = d.querySelector("#eremove");
+  if (rm) rm.onclick = async () => {
+    if (!(await ask(`Remove "${it[2] || "this item"}"?`, `It comes off ${nice(day)} once you publish. You can undo straight after.`, "Remove"))) return;
+    const k = day, gone = items.splice(i, 1)[0]; closeSheet(); render();
+    toast(`Removed ${gone[2] || "item"}`, () => { work.days[k].push(gone); const keep = day; day = k; sortDay(); day = keep; render(); });
+  };
+}
+
+/* ── Confirm dialog and undo toast ── */
+function ask(title, body, ok = "Remove", danger = true){
+  return new Promise(res => {
+    closeOverlay("#confirm");
+    const d = document.createElement("div"); d.className = "scrim center"; d.id = "confirm";
+    d.innerHTML = `<div class="dialog" role="alertdialog" aria-modal="true"><h3>${esc(title)}</h3>${body ? `<p>${esc(body)}</p>` : ""}
+      <div class="acts"><button class="btn ghost" data-no>Cancel</button><button class="btn ${danger ? "danger" : "primary"}" data-yes>${esc(ok)}</button></div></div>`;
+    document.body.appendChild(d); document.body.classList.add("locked");
+    const done = v => { closeOverlay("#confirm"); res(v); };
+    d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-no]")) done(false); else if (e.target.closest("[data-yes]")) done(true); });
+    d.querySelector("[data-yes]").focus();
+  });
+}
+let toastTimer = null;
+function toast(text, undo){
+  const old = $("#toast"); if (old) old.remove(); clearTimeout(toastTimer);
+  const t = document.createElement("div"); t.className = "toast"; t.id = "toast"; t.setAttribute("role", "status");
+  t.innerHTML = `<span>${esc(text)}</span>${undo ? `<button>Undo</button>` : ""}`;
+  document.body.appendChild(t);
+  if (undo) t.querySelector("button").onclick = () => { t.remove(); clearTimeout(toastTimer); undo(); };
+  toastTimer = setTimeout(() => t.remove(), 7000);
 }
 
 /* ── Menu ── */
@@ -498,18 +622,28 @@ function fixTab(){
 }
 
 /* ── Announcements ── */
+const SIGNS = ["Camp Management","Camp Director","Deputy Camp Director","State Coordinator","Sports Committee"];
+function noticeState(a){
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  const t = `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+  const st = `${a.from} ${a.fromT || "00:00"}`, en = `${a.to || a.from} ${a.toT || "24:00"}`;
+  return t < st ? "Scheduled" : t >= en ? "Ended" : "Showing now";
+}
 function noticeTab(){
-  const today = lagosToday();
   const list = work.announcements.map((a, i) => ({ a, i })).sort((x,y) => (y.a.postedAt||"").localeCompare(x.a.postedAt||""));
-  return `<h2>Announcements</h2><p class="sub">Shown at the top of every corps member's app between the two dates. Urgent ones appear above everything else.</p>
+  const opt = v => SIGNS.concat(SIGNS.includes(v) || !v ? [] : [v]).map(o => `<option ${o === (v || "Camp Management") ? "selected" : ""}>${esc(o)}</option>`).join("");
+  return `<h2>Announcements</h2><p class="sub">Shown on every corps member's app from the start to the end time. Leave the times empty to show all day. Urgent ones show in red above everything else and can't be dismissed.</p>
     <button class="btn full primary" data-add-notice style="margin-bottom:12px">+ New announcement</button>
     ${list.length ? "" : `<div class="card empty">No announcements yet.</div>`}
     ${list.map(({ a, i }) => `<div class="card ${a.urgent?"urgent-on":""}">
-      <div class="it-head"><b>${(a.to||a.from) < today ? "Ended" : a.from > today ? "Scheduled" : "Showing now"}${a.by?` · by ${esc(a.by)}`:""}</b><button class="del" data-del-notice="${i}">Delete</button></div>
+      <div class="it-head"><b>${noticeState(a)}${a.by?` · by ${esc(a.by)}`:""}</b><button class="del" data-del-notice="${i}">Delete</button></div>
       <label class="f"><span>Title</span><input type="text" value="${esc(a.title)}" data-p="a|${i}|title" placeholder="e.g. Lecture moved to the Auditorium"></label>
       <label class="f"><span>Message</span><textarea data-p="a|${i}|body" placeholder="Details corps members need to know">${esc(a.body)}</textarea></label>
-      <div class="row"><label class="f"><span>Show from</span><input type="date" value="${esc(a.from)}" data-p="a|${i}|from"></label>
-        <label class="f"><span>Show until</span><input type="date" value="${esc(a.to)}" data-p="a|${i}|to"></label></div>
+      <label class="f"><span>Posted as</span><select data-p="a|${i}|sign">${opt(a.sign)}</select></label>
+      <div class="row"><label class="f"><span>Starts</span><input type="date" value="${esc(a.from)}" data-p="a|${i}|from"></label>
+        <label class="f"><span>at (optional)</span><input type="time" value="${esc(a.fromT || "")}" data-p="a|${i}|fromT"></label></div>
+      <div class="row"><label class="f"><span>Ends</span><input type="date" value="${esc(a.to)}" data-p="a|${i}|to"></label>
+        <label class="f"><span>at (optional)</span><input type="time" value="${esc(a.toT || "")}" data-p="a|${i}|toT"></label></div>
       <label class="check"><input type="checkbox" ${a.urgent?"checked":""} data-p="a|${i}|urgent"> Mark as urgent</label>
     </div>`).join("")}`;
 }
@@ -556,7 +690,10 @@ function actTab(){
 function render(){
   const m = $("#main");
   m.innerHTML = tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "notice" ? noticeTab() : tab === "act" ? actTab() : acctTab();
-  if (tab === "time") { validateDay(); const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" }); }
+  if (tab === "time") {
+    const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" });
+    if (jumpNow) { jumpNow = false; const r = m.querySelector("[data-now]"); if (r) setTimeout(() => r.scrollIntoView({ block: "center", behavior: "smooth" }), 60); }
+  }
   if (tab === "fix") { const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" }); }
   refreshBar();
 }
@@ -564,27 +701,30 @@ function render(){
 /* ── Clicks ── */
 document.addEventListener("click", async e => {
   const t = e.target.closest("button, label.btn"); if (!t) return;
-  if (t.dataset.tab) { tab = t.dataset.tab; if (view !== "dashboard") setView("dashboard"); render(); window.scrollTo({ top: 0 }); return; }
-  if (t.dataset.day) { day = t.dataset.day; render(); return; }
+  if (t.dataset.tab) { tab = t.dataset.tab; if (tab === "time") jumpNow = true; if (view !== "dashboard") setView("dashboard"); render(); window.scrollTo({ top: 0 }); return; }
+  if (t.dataset.day) { day = t.dataset.day; jumpNow = true; render(); return; }
+  if (t.hasAttribute("data-jump")) { const r = $("[data-now]"); if (r) r.scrollIntoView({ block: "center", behavior: "smooth" }); else toast("Nothing is on right now."); return; }
+  if (t.dataset.edit !== undefined) { editItem(+t.dataset.edit); return; }
   if (t.dataset.fday) { fday = t.dataset.fday; render(); return; }
-  if (t.hasAttribute("data-add-item")) {
-    const last = work.days[day][work.days[day].length - 1];
-    work.days[day].push([last ? last[1] : "09:00", "", "", "", ""]); render();
-    const cards = document.querySelectorAll("[data-item]"); cards[cards.length - 1].scrollIntoView({ block: "center" });
-    cards[cards.length - 1].querySelector('input[type="text"]').focus(); return;
-  }
-  if (t.dataset.delItem !== undefined) {
-    const it = work.days[day][+t.dataset.delItem];
-    if (confirmRemove(`Remove "${it[2] || "this item"}"?`)) { work.days[day].splice(+t.dataset.delItem, 1); render(); } return;
-  }
+  if (t.hasAttribute("data-add-item")) { editItem(null); return; }
   if (t.hasAttribute("data-add-fix")) { work.fixtures.push({ d: fday, t: "17:00", sport: "Football", no: null, stage: "Round 1", a: "", b: "", note: "", score: "" }); render(); return; }
-  if (t.dataset.delFix !== undefined) { if (confirmRemove("Remove this fixture?")) { work.fixtures.splice(+t.dataset.delFix, 1); render(); } return; }
+  if (t.dataset.delFix !== undefined) {
+    const i = +t.dataset.delFix, f = work.fixtures[i];
+    if (!(await ask("Remove this fixture?", `${f.sport}${f.no ? " · Match #" + f.no : ""} on ${nice(f.d)}. You can undo straight after.`))) return;
+    const gone = work.fixtures.splice(i, 1)[0]; render();
+    toast("Fixture removed", () => { work.fixtures.splice(i, 0, gone); render(); }); return;
+  }
   if (t.hasAttribute("data-add-notice")) {
     const today = DATES.includes(lagosToday()) ? lagosToday() : DATES[0];
-    work.announcements.push({ id: "n" + Date.now(), title: "", body: "", urgent: false, from: today, to: today, postedAt: new Date().toISOString(), by: editor });
+    work.announcements.push({ id: "n" + Date.now(), title: "", body: "", urgent: false, sign: "Camp Management", from: today, fromT: "", to: today, toT: "", postedAt: new Date().toISOString(), by: editor });
     render(); document.querySelector('[data-p$="|title"]').focus(); return;
   }
-  if (t.dataset.delNotice !== undefined) { if (confirmRemove("Delete this announcement?")) { work.announcements.splice(+t.dataset.delNotice, 1); render(); } return; }
+  if (t.dataset.delNotice !== undefined) {
+    const i = +t.dataset.delNotice, a = work.announcements[i];
+    if (!(await ask("Delete this announcement?", `"${a.title || "Untitled"}" disappears from every phone once you publish. You can undo straight after.`, "Delete"))) return;
+    const gone = work.announcements.splice(i, 1)[0]; render();
+    toast("Announcement deleted", () => { work.announcements.splice(i, 0, gone); render(); }); return;
+  }
   if (t.hasAttribute("data-theme-toggle")) {
     const cur = document.documentElement.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     const next = cur === "dark" ? "light" : "dark";
@@ -595,20 +735,20 @@ document.addEventListener("click", async e => {
   if (t.dataset.view) { setView(t.dataset.view); return; }
   if (t.id === "lshow") { const i = $("#lcode"); i.type = i.type === "password" ? "text" : "password"; t.textContent = i.type === "password" ? "Show" : "Hide"; return; }
   if (t.id === "reload") {
-    if (changes().length && !confirmRemove("Load the latest version? Your unpublished changes on this phone will be replaced.")) return;
+    if (changes().length && !(await ask("Load the latest version?", "Your unpublished changes on this phone will be replaced.", "Load latest"))) return;
     store.del("camp-admin-draft"); const r = await connect();
     if (r === "ok") say("You now have the latest version.", "ok"); else say("Couldn't load the latest version. Check your network and try again.", "err"); return;
   }
   if (t.id === "reload-act") { activity = null; render(); return; }
   if (t.id === "signout") {
-    if (changes().length && !confirmRemove("You have unpublished changes. Sign out anyway? They stay saved on this phone.")) return;
+    if (changes().length && !(await ask("Sign out anyway?", "You have unpublished changes. They stay saved on this phone.", "Sign out"))) return;
     token = ""; store.del("camp-admin-token"); sess.del("camp-admin-token"); location.hash = "#login"; route(); return;
   }
   if (t.id === "dl") {
     const blob = new Blob([JSON.stringify(work, null, 2)], { type: "application/json" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `camp-companion-copy-${lagosToday()}.json`; a.click(); return;
   }
-  if (t.id === "discard") { if (confirmRemove("Discard all unpublished changes?")) { work = clone(base); store.del("camp-admin-draft"); render(); say("Changes discarded.", "info"); } return; }
+  if (t.id === "discard") { if (await ask("Discard all unpublished changes?", "Everything goes back to what's live now.", "Discard")) { work = clone(base); store.del("camp-admin-draft"); render(); say("Changes discarded.", "info"); } return; }
   if (t.id === "publish") { publish(); return; }
 });
 document.addEventListener("change", e => {
@@ -619,8 +759,6 @@ document.addEventListener("change", e => {
     work = c; render(); say("Copy restored. Check it, then tap Publish.", "ok");
   }).catch(() => say("That file isn't a Camp Companion copy.", "err"));
 });
-/* Native confirm is avoided on purpose in some embedded browsers; keep it simple and explicit */
-function confirmRemove(q){ return window.confirm(q); }
 
 /* ── Publish ── */
 async function publish(){
@@ -628,6 +766,8 @@ async function publish(){
   if (!ch.length || !token || !editor) return;
   const bad = DATES.find(k => work.days[k].some((it, i, a) => { const s = toM(it[0]), e = toM(it[1]); return isNaN(s) || isNaN(e) || e <= s || !String(it[2]).trim(); }));
   if (bad) { tab = "time"; day = bad; render(); say(`Fix the highlighted items on ${nice(bad)} first. Each needs a start, an end after it, and a name.`, "err"); return; }
+  const badN = work.announcements.find(a => !String(a.title || "").trim() || `${a.to || a.from} ${a.toT || "24:00"}` <= `${a.from} ${a.fromT || "00:00"}`);
+  if (badN) { tab = "notice"; render(); say(`Check the announcement "${badN.title || "Untitled"}". It needs a title, and its end must be after its start.`, "err"); return; }
   const btn = $("#publish"); btn.disabled = true; btn.textContent = "Publishing…";
   const next = clone(work); next.updatedAt = new Date().toISOString(); next.updatedBy = editor;
   try {
