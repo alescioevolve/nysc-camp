@@ -312,7 +312,7 @@
     comps.forEach(cp => cp.places.forEach((p, i) => {
       const r = rows[String(p)]; if (!r || i >= pts.length) return;
       r.pts += pts[i]; if (i < 3) r.medals[i]++;
-      r.items.push({ name: cp.name, kind: cp.kind, sport: cp.sport, place: i + 1, pts: pts[i], d: cp.d });
+      r.items.push({ name: cp.name, kind: cp.kind, sport: cp.sport, place: i + 1, pts: pts[i], d: cp.d, sample: !!cp.sample });
     }));
     (st.adjust || []).forEach(a => { const r = rows[String(a.p)]; if (!r) return; const v = +a.pts || 0;
       r.pts += v; r.items.push({ name: a.why || "Adjustment", kind: "adjust", pts: v, d: a.d }); });

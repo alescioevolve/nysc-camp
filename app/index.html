@@ -276,6 +276,7 @@ body.on-sports #install{display:none}
 .ev-n{font-size:15.5px;font-weight:700;margin-top:4px;line-height:1.3}
 .pod{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .pod span{font-size:13.5px;font-weight:600;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
+.pod span.smp{background:var(--khaki-soft);border-color:transparent;color:var(--khaki);font-size:11.5px;font-weight:800;letter-spacing:.06em}
 .pod span.me{background:var(--green-soft);border-color:var(--green-2);color:var(--green-2)}
 .st-mini{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink);margin-top:30px}
 .st-mini>span{font-size:24px}.st-mini b{display:block;font-size:15.5px}.st-mini small{font-size:13px;color:var(--muted)}
@@ -423,8 +424,9 @@ function standingsHTML(){
   const s = ST();
   const medals = r => r.medals.map((c, i) => c ? `${MED[i]}${c}` : "").filter(Boolean).join(" ") || "";
   return `${s.visible ? "" : `<div class="st-hide">Hidden from corps members. Only admins can see this until it's switched on.</div>`}
+    ${ST().comps.some(c => c.sample && c.places.some(Boolean)) ? `<div class="st-hide">Some places are samples for review. Officials replace them with the real results.</div>` : ""}
     <section class="card"><div class="st-h"><b>Overall platoon standings</b><small>Points for places: ${s.points.map((v, i) => `${ORD[i]} ${v}`).join(" · ")}</small></div>
-    ${s.rows.map(r => `<button class="st-row ${myP === r.p ? "me" : ""}" data-st-p="${r.p}" aria-expanded="${openP === r.p}"><span class="rk">${r.rank}</span><span class="nm">Platoon ${r.p}${myP === r.p ? "<em>YOU</em>" : ""}</span><span class="md">${medals(r)}</span><span class="pt">${r.pts}</span></button>${openP === r.p ? `<div class="st-bd">${r.items.length ? r.items.map(i => `<div><span>${EV_ICON(i)} ${esc(i.name)}${i.place ? ` · ${ORD[i.place - 1]}` : ""}</span><b class="${i.pts < 0 ? "neg" : ""}">${i.pts > 0 ? "+" : ""}${i.pts}</b></div>`).join("") : `<div class="none">No points yet.</div>`}</div>` : ""}`).join("")}
+    ${s.rows.map(r => `<button class="st-row ${myP === r.p ? "me" : ""}" data-st-p="${r.p}" aria-expanded="${openP === r.p}"><span class="rk">${r.rank}</span><span class="nm">Platoon ${r.p}${myP === r.p ? "<em>YOU</em>" : ""}</span><span class="md">${medals(r)}</span><span class="pt">${r.pts}</span></button>${openP === r.p ? `<div class="st-bd">${r.items.length ? r.items.map(i => `<div><span>${EV_ICON(i)} ${esc(i.name)}${i.place ? ` · ${ORD[i.place - 1]}` : ""}${i.sample ? " (sample)" : ""}</span><b class="${i.pts < 0 ? "neg" : ""}">${i.pts > 0 ? "+" : ""}${i.pts}</b></div>`).join("") : `<div class="none">No points yet.</div>`}</div>` : ""}`).join("")}
     <p class="fxnote">${s.any ? "Tap a platoon to see where its points came from." : "No results yet. Points appear as finals are played and events are judged."} Football, volleyball and badminton count once their final and third-place match are played. Points are set by camp management.</p></section>`;
 }
 function eventsHTML(kind, n){
@@ -434,7 +436,7 @@ function eventsHTML(kind, n){
     const done = e.places.some(Boolean), dl = e.d ? `${WD[wd(e.d)].slice(0,3)} ${dO(e.d).getUTCDate()} Oct` : "";
     const st = done ? `<span class="st ft">Results in</span>` : e.d && e.d < n.date ? `<span class="st pd">Results pending</span>` : e.d === n.date ? `<span class="st lv">Today</span>` : `<span class="st up">${dl}</span>`;
     return `<div class="ev"><div class="ev-h"><span>${done || (e.d && e.d <= n.date) ? dl : ""}</span>${st}</div><div class="ev-n">${esc(e.name)}</div>
-      ${done ? `<div class="pod">${e.places.map((p, i) => p ? `<span class="${myP === p ? "me" : ""}">${MED[i]} Platoon ${p}</span>` : "").join("")}</div>` : ""}</div>`;
+      ${done ? `<div class="pod">${e.places.map((p, i) => p ? `<span class="${myP === p ? "me" : ""}">${MED[i]} Platoon ${p}</span>` : "").join("")}${e.sample ? `<span class="smp">SAMPLE</span>` : ""}</div>` : ""}</div>`;
   }).join("");
 }
 function sportsHTML(n){
