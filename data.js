@@ -269,7 +269,61 @@
   const meta = { updatedAt: "", updatedBy: "" };
   const keys = Object.keys(days).sort();
   const clone = o => JSON.parse(JSON.stringify(o));
-  const BUILT_IN = clone({ schema: 1, updatedAt: "", updatedBy: "", days, menu, fixtures: F, announcements: [], bestLosers: {} });
+  /* ── Platoon standings: points across sports and socials ──
+     Football, volleyball and badminton places come from their brackets (final and third-place match).
+     Socials and athletics are events where officials enter 1st to 4th. Hidden until officials switch it on. */
+  const PLATOONS = ["1","2","3","4","5","6","7","8","9","10"];
+  const ev = (id, kind, name, d) => ({ id, kind, name, d, places: ["", "", "", ""] });
+  const DEFAULT_ST = { visible: false, points: [10, 7, 5, 3], adjust: [], events: [
+    ev("s-dancehall", "social", "Inter-Platoon Dance Hall Competition", "2026-10-03"),
+    ev("s-talent", "social", "Inter-Platoon Talent Hunt / Comedy Night", "2026-10-05"),
+    ev("s-cultural", "social", "Inter-Platoon Cultural Dance Competition", "2026-10-07"),
+    ev("s-drama", "social", "Inter-Platoon Drama Competition", "2026-10-09"),
+    ev("s-oldschool", "social", "Old-school Night", "2026-10-10"),
+    ev("s-petite", "social", "Miss Petite / Mr Tall and Handsome", "2026-10-12"),
+    ev("a-final", "athletics", "Athletics final", "2026-10-13"),
+    ev("s-bbb", "social", "Miss Big Bold & Beautiful / Mr Big Bold & Handsome", "2026-10-13"),
+    ev("s-missnysc", "social", "Miss NYSC & Mr Macho", "2026-10-14"),
+    ev("s-choreo", "social", "Inter-Platoon Choreography Competition", "2026-10-15"),
+    ev("s-carnival", "social", "Cultural Carnival", "2026-10-17")] };
+  const standings = JSON.parse(JSON.stringify(DEFAULT_ST));
+  const KNOCKOUT = ["Football", "Volleyball", "Badminton (singles)"];
+  /* Works on any content ({fixtures, bestLosers, standings}), so the admin can preview unpublished changes */
+  function computeStandings(c) {
+    const st = c.standings || DEFAULT_ST, pts = (st.points || DEFAULT_ST.points).map(x => +x || 0);
+    const fx = c.fixtures || [], bl = c.bestLosers || {};
+    const who = (sport, tok, depth = 0) => {
+      tok = String(tok ?? "").trim(); if (/^\d+$/.test(tok)) return tok; if (depth > 8) return "";
+      const m = tok.match(/^(W|L)(\d+)$/i);
+      if (m) { const g = fx.find(x => x.sport === sport && x.no === +m[2]); if (!g || (g.win !== "a" && g.win !== "b")) return "";
+        return who(sport, g[m[1].toUpperCase() === "W" ? g.win : (g.win === "a" ? "b" : "a")], depth + 1); }
+      const b = tok.match(/^BL(\d+)$/i); if (b) { const v = (bl[sport] || [])[+b[1] - 1]; return v ? who(sport, v, depth + 1) : ""; }
+      return "";
+    };
+    const wl = f => f && (f.win === "a" || f.win === "b") ? [who(f.sport, f[f.win]), who(f.sport, f[f.win === "a" ? "b" : "a"])] : ["", ""];
+    const comps = [];
+    KNOCKOUT.forEach(sp => {
+      const fin = fx.find(f => f.sport === sp && f.stage === "Final"), th = fx.find(f => f.sport === sp && f.stage === "Third place");
+      if (!fin) return;
+      comps.push({ id: "sp-" + sp, kind: "sport", sport: sp, name: sp.replace(" (singles)", ""), d: fin.d, places: [...wl(fin), ...wl(th)] });
+    });
+    (st.events || []).forEach(e => comps.push({ ...e, places: (e.places || []).slice(0, 4) }));
+    const rows = {}; PLATOONS.forEach(p => rows[p] = { p, pts: 0, medals: [0, 0, 0], items: [] });
+    comps.forEach(cp => cp.places.forEach((p, i) => {
+      const r = rows[String(p)]; if (!r || i >= pts.length) return;
+      r.pts += pts[i]; if (i < 3) r.medals[i]++;
+      r.items.push({ name: cp.name, kind: cp.kind, sport: cp.sport, place: i + 1, pts: pts[i], d: cp.d });
+    }));
+    (st.adjust || []).forEach(a => { const r = rows[String(a.p)]; if (!r) return; const v = +a.pts || 0;
+      r.pts += v; r.items.push({ name: a.why || "Adjustment", kind: "adjust", pts: v, d: a.d }); });
+    const list = Object.values(rows).sort((x, y) => y.pts - x.pts || y.medals[0] - x.medals[0] || y.medals[1] - x.medals[1] || y.medals[2] - x.medals[2] || +x.p - +y.p);
+    list.forEach((r, i) => { const q = list[i - 1];
+      r.rank = q && q.pts === r.pts && q.medals.join() === r.medals.join() ? q.rank : i + 1;
+      r.items.sort((x, y) => (x.d || "").localeCompare(y.d || "")); });
+    return { rows: list, comps, points: pts, visible: !!st.visible, any: comps.some(cp => cp.places.some(Boolean)) || (st.adjust || []).length > 0 };
+  }
+
+  const BUILT_IN = clone({ schema: 1, updatedAt: "", updatedBy: "", days, menu, fixtures: F, announcements: [], bestLosers: {}, standings: DEFAULT_ST });
 
   function valid(c) {
     return c && c.schema === 1 && c.days && typeof c.days === "object" && Array.isArray(c.menu) && c.menu.length === 7
@@ -286,12 +340,14 @@
     announcements.splice(0, announcements.length, ...c.announcements);
     Object.keys(bestLosers).forEach(k => delete bestLosers[k]);
     Object.assign(bestLosers, c.bestLosers || {});
+    Object.keys(standings).forEach(k => delete standings[k]);
+    Object.assign(standings, JSON.parse(JSON.stringify(c.standings || DEFAULT_ST)));
     keys.splice(0, keys.length, ...Object.keys(days).sort());
     meta.updatedAt = c.updatedAt || ""; meta.updatedBy = c.updatedBy || "";
     return true;
   }
   function exportContent() {
-    return clone({ schema: 1, updatedAt: meta.updatedAt, updatedBy: meta.updatedBy, days, menu, fixtures: F, announcements, bestLosers });
+    return clone({ schema: 1, updatedAt: meta.updatedAt, updatedBy: meta.updatedBy, days, menu, fixtures: F, announcements, bestLosers, standings });
   }
 
   /* 1. Last copy saved on this phone */
@@ -387,7 +443,7 @@
     allFixtures: F, bestLosers, resolve, sides, played, myMatches,
     sports: ["Football", "Volleyball", "Badminton (singles)", "Athletics"],
     stages: ["Round 1", "Quarter-final", "Semi-final", "Third place", "Final", "Heats", "Heats final"],
-    platoons: ["1","2","3","4","5","6","7","8","9","10"],
+    platoons: PLATOONS, standings, computeStandings, DEFAULT_ST, KNOCKOUT,
     SOURCE, RAW, PURGE, PREVIEW, BUILT_IN, apply, exportContent, refresh, valid,
     clock, overnight: (s, e) => { const a = toM(s), b = toM(e); return b <= a && a >= 18 * 60 && b <= 6 * 60; }
   };

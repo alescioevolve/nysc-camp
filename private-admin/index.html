@@ -187,6 +187,36 @@ input:focus,select:focus,textarea:focus{border-color:var(--green-2);background:v
 .tl-row .wr{display:block;font-size:12px;font-weight:700;color:var(--alert);margin-top:2px}
 .changes{font-size:13px;font-weight:600;color:var(--alert);margin:-4px 2px 10px}
 
+/* Standings */
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer}
+.switch-row b{display:block;font-size:15px}.switch-row small{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.4}
+.switch{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:52px;height:32px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;transition:background .15s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+.switch:checked{background:var(--green-2)}.switch:checked::after{left:23px}
+.row4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.row4 input{text-align:center;font-weight:700}
+.row4>label.f{margin-top:0}
+.smr{display:grid;grid-template-columns:26px minmax(0,1fr) auto 40px;gap:8px;align-items:center;padding:7px 2px;border-top:1px solid var(--line);font-size:14.5px}
+.smr:first-child{border-top:0}.smr>span:first-child{font-weight:800;color:var(--muted);text-align:center}.smr>b:last-child{text-align:right;font-size:16px}
+.smr small{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.st-info{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;min-height:56px;padding:8px 12px 8px 14px;border-top:1px solid var(--line)}
+.st-info:first-child{border-top:0}.st-info .ic,.tl-row .ic{font-size:20px;text-align:center}
+.st-info b{display:block;font-size:15px}.st-info small{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.tl-row.ev-r{grid-template-columns:28px minmax(0,1fr) auto}
+.slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
+.slot{min-height:58px;border:1.5px dashed var(--line);border-radius:12px;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;font:inherit;color:var(--ink)}
+.slot small{font-size:11.5px;font-weight:700;color:var(--muted)}.slot b{font-size:15px}
+.slot.on{border-style:solid;border-color:var(--green-2);background:var(--green-soft)}
+.slot.next{border-color:var(--green-2)}
+.pgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.pgrid button{min-height:52px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font:700 16px Inter,sans-serif;color:var(--ink);cursor:pointer}
+.pgrid button small{display:block;font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.pgrid button.used{background:var(--green-2);border-color:var(--green-2);color:var(--surface)}.pgrid button.used small{color:var(--surface)}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg2 button{min-height:40px;border:0;border-radius:9px;background:transparent;font:600 14px Inter,sans-serif;color:var(--muted);cursor:pointer}
+.seg2 button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.hint{font-size:12.5px;color:var(--muted);margin:2px 2px 0}
+
 /* Pop-up sheet, confirm dialog, undo toast */
 .scrim{position:fixed;inset:0;z-index:40;background:rgba(10,18,14,.45);display:flex;align-items:flex-end;justify-content:center;animation:fade .15s ease-out}
 .scrim.center{align-items:center;padding:20px}
@@ -259,6 +289,7 @@ body.locked{overflow:hidden}
       <button class="tab" data-tab="time">Timetable</button>
       <button class="tab" data-tab="notice">Announcements</button>
       <button class="tab" data-tab="fix">Fixtures &amp; results</button>
+      <button class="tab" data-tab="st">Standings</button>
       <button class="tab" data-tab="menu">Menu</button>
       <button class="tab" data-tab="act">Activity</button>
       <button class="tab" data-tab="acct">Account</button>
@@ -364,11 +395,11 @@ async function connect(){
       const j = await r.json(); sha = j.sha;
       const c = JSON.parse(fromB64(j.content));
       if (!CAMP.valid(c)) throw new Error("the saved schedule couldn't be read");
-      base = c; say("", "info");
+      base = norm(c); say("", "info");
     } else throw new Error("server error " + r.status);
     const draft = JSON.parse(store.get("camp-admin-draft") || "null");
     if (draft && draft.sha === sha && CAMP.valid(draft.work) && JSON.stringify(draft.work) !== JSON.stringify(base)) {
-      work = draft.work; say("Restored the unsaved changes you made earlier on this phone.", "info");
+      work = norm(draft.work); say("Restored the unsaved changes you made earlier on this phone.", "info");
     } else { work = clone(base); store.del("camp-admin-draft"); }
     setConn(true); render(); refreshBar();
     return "ok";
@@ -388,6 +419,8 @@ function setWho(){
 
 /* ── Change tracking ── */
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/* Copies published before standings existed get the default (hidden) standings */
+const norm = c => { if (c && !c.standings) c.standings = clone(CAMP.DEFAULT_ST); return c; };
 function changes(){
   const out = [];
   const dd = DATES.filter(k => !same(work.days[k], base.days[k]));
@@ -395,6 +428,7 @@ function changes(){
   if (!same(work.menu, base.menu)) out.push("menu");
   if (!same(work.fixtures, base.fixtures) || !same(work.bestLosers || {}, base.bestLosers || {})) out.push("results and fixtures");
   if (!same(work.announcements, base.announcements)) out.push("announcements");
+  if (!same(work.standings, base.standings)) out.push("standings");
   return out;
 }
 function refreshBar(){
@@ -405,7 +439,7 @@ function refreshBar(){
   $("#publish").disabled = !ch.length || !token || !editor;
   document.querySelectorAll(".tab").forEach(t => {
     const k = t.dataset.tab;
-    const dirty = (k==="time" && ch.some(c=>c.startsWith("timetable"))) || (k==="menu" && ch.includes("menu")) || (k==="fix" && ch.includes("results and fixtures")) || (k==="notice" && ch.includes("announcements"));
+    const dirty = (k==="time" && ch.some(c=>c.startsWith("timetable"))) || (k==="menu" && ch.includes("menu")) || (k==="fix" && ch.includes("results and fixtures")) || (k==="notice" && ch.includes("announcements")) || (k==="st" && ch.includes("standings"));
     t.innerHTML = t.textContent.replace(/\s*$/,"") + (dirty ? '<span class="dot"></span>' : "");
     t.classList.toggle("on", k === tab);
   });
@@ -430,6 +464,7 @@ function setPath(p, v){
   }
   if (kind === "bl") { work.bestLosers = work.bestLosers || {}; const arr = work.bestLosers[a] = work.bestLosers[a] || ["","",""]; arr[+b] = v.trim(); }
   if (kind === "a") work.announcements[+a][b] = v;
+  if (kind === "st") { if (a === "visible") work.standings.visible = !!v; if (a === "points") work.standings.points[+b] = v === "" ? 0 : Math.max(0, Math.round(+v) || 0); }
 }
 document.addEventListener("input", e => {
   const p = e.target.dataset && e.target.dataset.p; if (!p) return;
@@ -439,7 +474,8 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const p = e.target.dataset && e.target.dataset.p;
-  if (p && p.startsWith("a|") && /\|(from|to|fromT|toT)$/.test(p)) render();   // refresh "Showing now / Scheduled"
+  if (p && p.startsWith("a|") && /\|(from|to|fromT|toT)$/.test(p)) render();
+  if (p && p.startsWith("st|")) render();   // refresh "Showing now / Scheduled"
 });
 
 /* ── Timetable ── */
@@ -659,6 +695,115 @@ function noticeTab(){
     </div>`).join("")}`;
 }
 
+/* ── Standings ── */
+const ORD = ["1st","2nd","3rd","4th"];
+const EV_ICON = { social: "🎭", athletics: "🏃" }, SP_ICON = { "Football": "⚽", "Volleyball": "🏐", "Badminton (singles)": "🏸" };
+const placesTxt = pl => (pl || []).map((p, i) => p ? `${ORD[i]} Platoon ${p}` : "").filter(Boolean).join(", ");
+function stTab(){
+  const S = work.standings, r = CAMP.computeStandings(work);
+  const was = Object.fromEntries((base.standings.events || []).map(e => [e.id, e]));
+  const medals = x => x.medals.map((c, i) => c ? ["🥇","🥈","🥉"][i] + c : "").filter(Boolean).join(" ");
+  const evs = S.events.map((e, i) => ({ e, i })).sort((x, y) => (x.e.d || "").localeCompare(y.e.d || ""));
+  return `<h2>Platoon standings</h2><p class="sub">Points across sports and socials. Football, volleyball and badminton places come from their brackets. Enter places for socials and athletics after each event.</p>
+    <div class="card"><label class="switch-row"><span><b>Show to corps members</b><small>${S.visible ? "Corps members can see the standings and social results." : "Hidden. Only admins can see it, in the corps member view."}</small></span>
+      <input type="checkbox" class="switch" data-p="st|visible" ${S.visible ? "checked" : ""} aria-label="Show standings to corps members"></label></div>
+    <div class="card"><div class="meal-h">Points for each place</div><p class="tip">The same for every event. Changing them recalculates everything.</p>
+      <div class="row4">${S.points.map((v, i) => `<label class="f"><span>${ORD[i]}</span><input type="number" inputmode="numeric" min="0" value="${esc(v)}" data-p="st|points|${i}"></label>`).join("")}</div></div>
+    <h3 class="meal-h" style="margin:16px 2px 6px">Current standings</h3>
+    <div class="card">${!r.any ? `<div class="empty">No points yet. They appear as finals are played and events are judged.</div>` : r.rows.map(x => `<div class="smr"><span>${x.rank}</span><b>Platoon ${x.p}</b><small>${medals(x)}</small><b>${x.pts}</b></div>`).join("")}</div>
+    <h3 class="meal-h" style="margin:16px 2px 6px">Events</h3>
+    <div class="card tl">
+      ${r.comps.filter(c => c.kind === "sport").map(c => `<div class="st-info"><span class="ic">${SP_ICON[c.sport] || "🏅"}</span><span><b>${esc(c.name)}</b><small>${c.places.some(Boolean) ? placesTxt(c.places) : "From the bracket, once the final and third-place match are played"}</small></span></div>`).join("")}
+      ${evs.map(({ e, i }) => `<button class="tl-row ev-r" data-st-ev="${i}"><span class="ic">${EV_ICON[e.kind] || "🏅"}</span>
+        <span><span class="nm">${esc(e.name || "Untitled event")}</span><span class="mt">${e.d ? nice(e.d) + " · " : ""}${e.places.some(Boolean) ? placesTxt(e.places) : "Tap to enter places"}</span></span>
+        <span class="rt">${same(was[e.id], e) ? "" : `<span class="edot" title="Changed since the last publish"></span>`}›</span></button>`).join("")}
+    </div>
+    <button class="btn full" data-st-add>+ Add an event</button>
+    <h3 class="meal-h" style="margin:18px 2px 2px">Points adjustments</h3>
+    <p class="sub">Extra points or deductions, for example for drill or sanitation. Corps members see the reason.</p>
+    ${S.adjust.length ? `<div class="card tl">${S.adjust.map((a, i) => `<button class="tl-row ev-r" data-st-adj="${i}"><span class="ic">⚖️</span>
+      <span><span class="nm">Platoon ${esc(a.p)} · ${a.pts > 0 ? "+" : ""}${esc(a.pts)}</span><span class="mt">${esc(a.why)}${a.d ? " · " + nice(a.d) : ""}</span></span><span class="rt">›</span></button>`).join("")}</div>` : ""}
+    <button class="btn full" data-st-adj-add>+ Add points or a deduction</button>`;
+}
+const pgrid = (sel, used = []) => `<div class="pgrid">${CAMP.platoons.map(p => `<button type="button" data-pg="${p}" class="${used.includes(p) ? "used" : ""}"><small>PLATOON</small>${p}</button>`).join("")}</div>`;
+function editEvent(i){
+  const isNew = i === null, S = work.standings;
+  const e = isNew ? { id: "e" + Date.now(), kind: "social", name: "", d: DATES.includes(lagosToday()) ? lagosToday() : DATES[0], places: ["","","",""] } : clone(S.events[i]);
+  let pl = (e.places || []).concat(["","","",""]).slice(0, 4), kind = e.kind;
+  const d = openSheet(`<div class="grab"></div><h3>${isNew ? "New event" : "Event places"}</h3>
+    <label class="f" style="margin-top:10px"><span>Event</span><input type="text" id="ev-n" value="${esc(e.name)}" placeholder="e.g. Inter-Platoon Drama Competition"></label>
+    <div class="row"><label class="f"><span>Date</span><input type="date" id="ev-d" value="${esc(e.d)}" min="${DATES[0]}" max="${DATES[DATES.length-1]}"></label>
+      <label class="f"><span>Type</span><div class="seg2" id="ev-k"><button type="button" data-k="social">Social</button><button type="button" data-k="athletics">Athletics</button></div></label></div>
+    <div class="meal-h" style="margin-top:14px">Places</div>
+    <p class="hint">Tap platoons in finishing order. Tap a place to clear it.</p>
+    <div class="slots" id="ev-s"></div><div id="ev-g"></div>
+    <div class="warn" id="ev-w"></div>
+    <div class="sheet-f">${isNew ? "" : `<button class="del" id="ev-rm">Remove</button>`}<button class="btn ghost" id="ev-c">Cancel</button><button class="btn primary" id="ev-ok">${isNew ? "Add" : "Save"}</button></div>`);
+  const paint = () => {
+    const nx = pl.indexOf("");
+    d.querySelector("#ev-s").innerHTML = pl.map((p, j) => `<button type="button" class="slot ${p ? "on" : ""} ${j === nx ? "next" : ""}" data-slot="${j}"><small>${ORD[j]}</small><b>${p ? "Platoon " + p : "–"}</b></button>`).join("");
+    d.querySelector("#ev-g").innerHTML = pgrid("", pl.filter(Boolean));
+    d.querySelectorAll("#ev-k button").forEach(b => b.classList.toggle("on", b.dataset.k === kind));
+  };
+  paint();
+  d.addEventListener("click", ev => {
+    const g = ev.target.closest("[data-pg]"), sl = ev.target.closest("[data-slot]"), k = ev.target.closest("[data-k]");
+    if (g) { const p = g.dataset.pg, at = pl.indexOf(p); if (at >= 0) pl[at] = ""; else { const nx = pl.indexOf(""); if (nx >= 0) pl[nx] = p; } paint(); }
+    if (sl) { pl[+sl.dataset.slot] = ""; paint(); }
+    if (k) { kind = k.dataset.k; paint(); }
+  });
+  if (isNew) setTimeout(() => d.querySelector("#ev-n").focus(), 250);
+  d.querySelector("#ev-c").onclick = () => closeSheet();
+  d.querySelector("#ev-ok").onclick = () => {
+    const name = d.querySelector("#ev-n").value.trim(), dt = d.querySelector("#ev-d").value;
+    if (!name) { d.querySelector("#ev-w").textContent = "Give the event a name."; return; }
+    const out = { ...e, kind, name, d: dt, places: pl.slice() };
+    if (isNew) S.events.push(out); else S.events[i] = out;
+    closeSheet(); render();
+  };
+  const rm = d.querySelector("#ev-rm");
+  if (rm) rm.onclick = async () => {
+    if (!(await ask(`Remove "${e.name || "this event"}"?`, "Its points come off the standings once you publish. You can undo straight after.", "Remove"))) return;
+    const gone = S.events.splice(i, 1)[0]; closeSheet(); render();
+    toast(`Removed ${gone.name || "event"}`, () => { work.standings.events.splice(i, 0, gone); render(); });
+  };
+}
+function editAdj(i){
+  const isNew = i === null, S = work.standings;
+  const a = isNew ? { id: "j" + Date.now(), p: "", pts: 0, why: "", d: DATES.includes(lagosToday()) ? lagosToday() : DATES[0] } : clone(S.adjust[i]);
+  let p = String(a.p || ""), sign = a.pts < 0 ? -1 : 1;
+  const d = openSheet(`<div class="grab"></div><h3>${isNew ? "Points or deduction" : "Change adjustment"}</h3>
+    <div class="seg2" id="aj-s" style="margin-top:10px"><button type="button" data-sg="1">Add points</button><button type="button" data-sg="-1">Deduct points</button></div>
+    <div class="meal-h" style="margin-top:14px">Platoon</div><div id="aj-g" style="margin-top:6px"></div>
+    <div class="row"><label class="f"><span>Points</span><input type="number" inputmode="numeric" min="1" id="aj-n" value="${a.pts ? Math.abs(a.pts) : ""}" placeholder="e.g. 2"></label>
+      <label class="f"><span>Date</span><input type="date" id="aj-d" value="${esc(a.d || "")}" min="${DATES[0]}" max="${DATES[DATES.length-1]}"></label></div>
+    <label class="f"><span>Reason</span><input type="text" id="aj-w" value="${esc(a.why)}" placeholder="e.g. Late to morning parade"></label>
+    <div class="warn" id="aj-x"></div>
+    <div class="sheet-f">${isNew ? "" : `<button class="del" id="aj-rm">Remove</button>`}<button class="btn ghost" id="aj-c">Cancel</button><button class="btn primary" id="aj-ok">${isNew ? "Add" : "Save"}</button></div>`);
+  const paint = () => { d.querySelector("#aj-g").innerHTML = pgrid("", p ? [p] : []); d.querySelectorAll("#aj-s button").forEach(b => b.classList.toggle("on", +b.dataset.sg === sign)); };
+  paint();
+  d.addEventListener("click", ev => {
+    const g = ev.target.closest("[data-pg]"), sg = ev.target.closest("[data-sg]");
+    if (g) { p = p === g.dataset.pg ? "" : g.dataset.pg; paint(); }
+    if (sg) { sign = +sg.dataset.sg; paint(); }
+  });
+  d.querySelector("#aj-c").onclick = () => closeSheet();
+  d.querySelector("#aj-ok").onclick = () => {
+    const n = Math.round(Math.abs(+d.querySelector("#aj-n").value || 0)), why = d.querySelector("#aj-w").value.trim();
+    const w = !p ? "Choose a platoon." : !n ? "Enter how many points." : !why ? "Give a reason. Corps members will see it." : "";
+    if (w) { d.querySelector("#aj-x").textContent = w; return; }
+    const out = { ...a, p, pts: sign * n, why, d: d.querySelector("#aj-d").value };
+    if (isNew) S.adjust.push(out); else S.adjust[i] = out;
+    closeSheet(); render();
+  };
+  const rm = d.querySelector("#aj-rm");
+  if (rm) rm.onclick = async () => {
+    if (!(await ask("Remove this adjustment?", `Platoon ${a.p} · ${a.pts > 0 ? "+" : ""}${a.pts} · ${a.why}`, "Remove"))) return;
+    const gone = S.adjust.splice(i, 1)[0]; closeSheet(); render();
+    toast("Adjustment removed", () => { work.standings.adjust.splice(i, 0, gone); render(); });
+  };
+}
+
 /* ── Account ── */
 function acctTab(){
   if (!codeId && token) makeCodeId().then(() => { if (tab === "acct") render(); });
@@ -710,7 +855,7 @@ function actTab(){
 
 function render(){
   const m = $("#main");
-  m.innerHTML = tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "notice" ? noticeTab() : tab === "act" ? actTab() : acctTab();
+  m.innerHTML = tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "st" ? stTab() : tab === "notice" ? noticeTab() : tab === "act" ? actTab() : acctTab();
   if (tab === "time") {
     const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" });
     if (jumpNow) { jumpNow = false; const r = m.querySelector("[data-now]"); if (r) setTimeout(() => r.scrollIntoView({ block: "center", behavior: "smooth" }), 60); }
@@ -726,6 +871,10 @@ document.addEventListener("click", async e => {
   if (t.dataset.day) { day = t.dataset.day; jumpNow = true; render(); return; }
   if (t.hasAttribute("data-jump")) { const r = $("[data-now]"); if (r) r.scrollIntoView({ block: "center", behavior: "smooth" }); else toast("Nothing is on right now."); return; }
   if (t.dataset.edit !== undefined) { editItem(+t.dataset.edit); return; }
+  if (t.dataset.stEv !== undefined) { editEvent(+t.dataset.stEv); return; }
+  if (t.hasAttribute("data-st-add")) { editEvent(null); return; }
+  if (t.dataset.stAdj !== undefined) { editAdj(+t.dataset.stAdj); return; }
+  if (t.hasAttribute("data-st-adj-add")) { editAdj(null); return; }
   if (t.dataset.fday) { fday = t.dataset.fday; render(); return; }
   if (t.hasAttribute("data-add-item")) { editItem(null); return; }
   if (t.hasAttribute("data-add-fix")) { work.fixtures.push({ d: fday, t: "17:00", sport: "Football", no: null, stage: "Round 1", a: "", b: "", note: "", score: "" }); render(); return; }
@@ -777,7 +926,7 @@ document.addEventListener("change", e => {
   e.target.files[0].text().then(txt => {
     const c = JSON.parse(txt);
     if (!CAMP.valid(c)) throw new Error("bad file");
-    work = c; render(); say("Copy restored. Check it, then tap Publish.", "ok");
+    work = norm(c); render(); say("Copy restored. Check it, then tap Publish.", "ok");
   }).catch(() => say("That file isn't a Camp Companion copy.", "err"));
 });
 
@@ -838,6 +987,25 @@ function describe(old, now){
     out.push(`Edited announcement ${q(a.title)}: ${bits.join("; ")}`);
   });
   Object.values(O).forEach(o => { if (!M[o.id]) out.push(`Deleted announcement ${q(o.title)}`); });
+  const so = old.standings || CAMP.DEFAULT_ST, sn = now.standings || CAMP.DEFAULT_ST;
+  if (!!so.visible !== !!sn.visible) out.push(sn.visible ? "Standings: now shown to corps members" : "Standings: now hidden from corps members");
+  if (!same(so.points, sn.points)) out.push(`Standings points: ${so.points.map((v, i) => `${ORD[i]} ${v}`).join(", ")} → ${sn.points.map((v, i) => `${ORD[i]} ${v}`).join(", ")}`);
+  const EO = Object.fromEntries((so.events || []).map(e => [e.id, e])), EN = Object.fromEntries((sn.events || []).map(e => [e.id, e]));
+  Object.values(EN).forEach(e => { const o = EO[e.id];
+    if (!o) return out.push(`Standings: added event ${q(e.name)}${e.d ? ` (${nice(e.d)})` : ""}${e.places.some(Boolean) ? `, ${placesTxt(e.places)}` : ""}`);
+    if (same(o, e)) return;
+    const bits = [];
+    if (o.name !== e.name) bits.push(`renamed from ${q(o.name)}`);
+    if (o.d !== e.d) bits.push(`date ${nice(o.d)} → ${nice(e.d)}`);
+    if (o.kind !== e.kind) bits.push(`now ${e.kind}`);
+    if (!same(o.places, e.places)) bits.push(e.places.some(Boolean) ? `places ${placesTxt(e.places)}${o.places.some(Boolean) ? ` (was ${placesTxt(o.places)})` : ""}` : "places cleared");
+    out.push(`Standings, ${q(e.name)}: ${bits.join("; ")}`);
+  });
+  Object.values(EO).forEach(o => { if (!EN[o.id]) out.push(`Standings: removed event ${q(o.name)}`); });
+  const AO = Object.fromEntries((so.adjust || []).map(a => [a.id, a])), AN = Object.fromEntries((sn.adjust || []).map(a => [a.id, a]));
+  const adj = a => `${a.pts > 0 ? "+" : ""}${a.pts} for Platoon ${a.p} (${a.why})`;
+  Object.values(AN).forEach(a => { const o = AO[a.id]; if (!o) out.push(`Standings: ${adj(a)}`); else if (!same(o, a)) out.push(`Standings: changed ${adj(o)} to ${adj(a)}`); });
+  Object.values(AO).forEach(o => { if (!AN[o.id]) out.push(`Standings: removed ${adj(o)}`); });
   return out;
 }
 /* A short ID for the access code used, so every update can be traced to a code (the code itself is never shown) */
@@ -876,6 +1044,15 @@ function combine(old, mine, theirs){
   const bl = {}, sp = new Set([...Object.keys(old.bestLosers || {}), ...Object.keys(mine.bestLosers || {}), ...Object.keys(theirs.bestLosers || {})]);
   sp.forEach(k => { const v = pick((old.bestLosers || {})[k], (mine.bestLosers || {})[k], (theirs.bestLosers || {})[k], `${k} best losers`); if (v) bl[k] = clone(v); });
   out.bestLosers = bl;
+  {
+    const os = old.standings || {}, ms = mine.standings || {}, ts = theirs.standings || {};
+    const byId = l => Object.fromEntries((l || []).map(x => [x.id, x]));
+    const list = (key, label) => { const O = byId(os[key]), M = byId(ms[key]), T = byId(ts[key]);
+      return [...new Set([...(ts[key] || []), ...(ms[key] || [])].map(x => x.id))].map(id => pick(O[id], M[id], T[id], label(M[id] || T[id] || O[id]))).filter(Boolean).map(clone); };
+    out.standings = { visible: !!pick(os.visible, ms.visible, ts.visible, "whether standings are shown"),
+      points: clone(pick(os.points, ms.points, ts.points, "the standings points") || CAMP.DEFAULT_ST.points),
+      events: list("events", e => `the standings event "${e.name}"`), adjust: list("adjust", a => `a standings adjustment for Platoon ${a.p}`) };
+  }
   const by = list => Object.fromEntries((list || []).map(a => [a.id, a]));
   const O = by(old.announcements), M = by(mine.announcements), T = by(theirs.announcements);
   const ids = [...new Set([...(theirs.announcements || []), ...(mine.announcements || [])].map(a => a.id))];
@@ -890,6 +1067,7 @@ async function publish(attempt = 0){
   if (bad) { tab = "time"; day = bad; render(); say(`Fix the highlighted items on ${nice(bad)} first. Each needs a name and a start and end time.`, "err"); return; }
   const badN = work.announcements.find(a => !String(a.title || "").trim() || `${a.to || a.from} ${a.toT || "24:00"}` <= `${a.from} ${a.fromT || "00:00"}`);
   if (badN) { tab = "notice"; render(); say(`Check the announcement "${badN.title || "Untitled"}". It needs a title, and its end must be after its start.`, "err"); return; }
+  if (work.standings.events.some(e => !String(e.name || "").trim())) { tab = "st"; render(); say("Every standings event needs a name.", "err"); return; }
   const btn = $("#publish"); btn.disabled = true; btn.textContent = "Publishing…";
   const next = clone(work); next.updatedAt = new Date().toISOString(); next.updatedBy = editor;
   let retry = false;
@@ -902,7 +1080,7 @@ async function publish(attempt = 0){
     if (r.status === 409 || r.status === 422) {
       /* Someone else published first. Load theirs and combine. */
       const g = await gh("GET"); if (!g.ok) throw new Error("reload " + g.status);
-      const j = await g.json(); const theirs = JSON.parse(fromB64(j.content));
+      const j = await g.json(); const theirs = norm(JSON.parse(fromB64(j.content)));
       if (!CAMP.valid(theirs)) throw new Error("bad copy");
       const { merged, clashes } = combine(base, work, theirs);
       const who = theirs.updatedBy && theirs.updatedBy !== editor ? theirs.updatedBy : "Another admin";
