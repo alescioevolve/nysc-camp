@@ -738,6 +738,7 @@ function editEvent(i){
   let pl = (e.places || []).concat(["","","",""]).slice(0, 4), kind = e.kind;
   const d = openSheet(`<div class="grab"></div><h3>${isNew ? "New event" : "Event places"}</h3>
     <label class="f" style="margin-top:10px"><span>Event</span><input type="text" id="ev-n" value="${esc(e.name)}" placeholder="e.g. Inter-Platoon Drama Competition"></label>
+    <label class="f"><span>Topic or note (optional)</span><input type="text" id="ev-t" value="${esc(e.note || "")}" placeholder="e.g. Theme, topic or rules"></label>
     <div class="row"><label class="f"><span>Date</span><input type="date" id="ev-d" value="${esc(e.d)}" min="${DATES[0]}" max="${DATES[DATES.length-1]}"></label>
       <label class="f"><span>Type</span><div class="seg2" id="ev-k"><button type="button" data-k="social">Social</button><button type="button" data-k="athletics">Athletics</button></div></label></div>
     <div class="meal-h" style="margin-top:14px">Places</div>
@@ -763,7 +764,8 @@ function editEvent(i){
   d.querySelector("#ev-ok").onclick = () => {
     const name = d.querySelector("#ev-n").value.trim(), dt = d.querySelector("#ev-d").value;
     if (!name) { d.querySelector("#ev-w").textContent = "Give the event a name."; return; }
-    const out = { ...e, kind, name, d: dt, places: pl.slice() }; delete out.sample;   // saved by an official = real result
+    const out = { ...e, kind, name, d: dt, places: pl.slice(), note: d.querySelector("#ev-t").value.trim() }; delete out.sample;
+    if (!out.note) delete out.note;   // saved by an official = real result
     if (isNew) S.events.push(out); else S.events[i] = out;
     closeSheet(); render();
   };
@@ -1004,6 +1006,7 @@ function describe(old, now){
     if (o.name !== e.name) bits.push(`renamed from ${q(o.name)}`);
     if (o.d !== e.d) bits.push(`date ${nice(o.d)} → ${nice(e.d)}`);
     if (o.kind !== e.kind) bits.push(`now ${e.kind}`);
+    if ((o.note || "") !== (e.note || "")) bits.push(e.note ? `topic ${q(e.note)}` : "topic removed");
     if (o.sample && !e.sample) bits.push("sample places replaced with the real result");
     if (!same(o.places, e.places)) bits.push(e.places.some(Boolean) ? `places ${placesTxt(e.places)}${o.places.some(Boolean) ? ` (was ${placesTxt(o.places)})` : ""}` : "places cleared");
     out.push(`Standings, ${q(e.name)}: ${bits.join("; ")}`);

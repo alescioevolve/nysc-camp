@@ -274,6 +274,7 @@ body.on-sports #install{display:none}
 .ev{padding:12px 0;border-bottom:1px dashed var(--line)}.ev:last-child{border-bottom:0}
 .ev-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-weight:600}
 .ev-n{font-size:15.5px;font-weight:700;margin-top:4px;line-height:1.3}
+.ev-t{font-size:13.5px;color:var(--muted);margin-top:3px;line-height:1.45}
 .pod{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .pod span{font-size:13.5px;font-weight:600;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
 .pod span.smp{background:var(--khaki-soft);border-color:transparent;color:var(--khaki);font-size:11.5px;font-weight:800;letter-spacing:.06em}
@@ -435,14 +436,15 @@ function eventsHTML(kind, n){
   return evs.map(e => {
     const done = e.places.some(Boolean), dl = e.d ? `${WD[wd(e.d)].slice(0,3)} ${dO(e.d).getUTCDate()} Oct` : "";
     const st = done ? `<span class="st ft">Results in</span>` : e.d && e.d < n.date ? `<span class="st pd">Results pending</span>` : e.d === n.date ? `<span class="st lv">Today</span>` : `<span class="st up">${dl}</span>`;
-    return `<div class="ev"><div class="ev-h"><span>${done || (e.d && e.d <= n.date) ? dl : ""}</span>${st}</div><div class="ev-n">${esc(e.name)}</div>
+    return `<div class="ev"><div class="ev-h"><span>${done || (e.d && e.d <= n.date) ? dl : ""}</span>${st}</div><div class="ev-n">${esc(e.name)}</div>${e.note ? `<div class="ev-t">${esc(e.note)}</div>` : ""}
       ${done ? `<div class="pod">${e.places.map((p, i) => p ? `<span class="${myP === p ? "me" : ""}">${MED[i]} Platoon ${p}</span>` : "").join("")}${e.sample ? `<span class="smp">SAMPLE</span>` : ""}</div>` : ""}</div>`;
   }).join("");
 }
 function sportsHTML(n){
   const show = SHOW_ST(), TABS = [...(show ? ["Standings"] : []), ...SPORTS, ...(show ? ["Socials"] : [])];
   if (!TABS.includes(sportSel)) sportSel = show ? "Standings" : "Football";
-  const TAB_ICON = { Standings: "🏆", Socials: "🎭", ...SPORT_ICON };
+  const locked = !CAMP.standings.visible;   // only admins reach here while hidden
+  const TAB_ICON = { Standings: locked ? "🔒" : "🏆", Socials: locked ? "🔒" : "🎭", ...SPORT_ICON };
   let h = `<div class="sp-top"><button class="back" data-back>← Back</button><h2>${show ? "Sports & socials" : "Sports"}</h2><span></span></div>
     <div class="seg">${TABS.map(sp => `<button data-sport="${sp}" class="${sp === sportSel ? "on" : ""}">${TAB_ICON[sp]} ${SHORT(sp)}</button>`).join("")}</div>`;
   if (sportSel === "Standings") return h + `<section class="card pk-only">${pickerHTML()}</section>` + standingsHTML();
