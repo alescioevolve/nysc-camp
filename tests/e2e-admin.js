@@ -30,25 +30,36 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
       return new Response(r.body || null, { status: r.status, headers: r.headers }); }
     return realFetch(u, o);
   };
-  const officials = require('../api/officials.js'), live = require('../api/live.js');
+  const V = require('web-push').generateVAPIDKeys();
+  process.env.VAPID_PUBLIC_KEY = V.publicKey; process.env.VAPID_PRIVATE_KEY = V.privateKey;
+  const pushSent = []; require('web-push').sendNotification = async (sub, body, opt) => { pushSent.push({ endpoint: sub.endpoint, payload: JSON.parse(body), urgency: opt.urgency }); return { statusCode: 201 }; };
+  const officials = require('../api/officials.js'), live = require('../api/live.js'), push = require('../api/push.js');
   const runFn = async (fn, req) => { const res = { h: {}, setHeader(k, v) { this.h[k] = v; }, status(s) { this.s = s; return this; }, json(b) { this.b = JSON.stringify(b); return this; }, send(b) { this.b = b; return this; } };
     await fn(req, res); return res; };
 
   const b = await chromium.launch();
-  async function ctxFor(cfg) {
+  async function ctxFor(cfg, phone) {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
+    /* A pretend phone: notifications allowed, and the browser's push service returns a fixed address */
+    await ctx.addInitScript(ep => {
+      const fake = { endpoint: 'https://push.example/' + ep, toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'BPk', auth: 'au' } }; }, unsubscribe: async () => true };
+      try { Object.defineProperty(Notification, 'permission', { get: () => 'granted' }); Notification.requestPermission = async () => 'granted'; } catch (e) {}
+      if (window.PushManager) { PushManager.prototype.subscribe = async () => fake; PushManager.prototype.getSubscription = async () => (localStorage.getItem('camp-push') || localStorage.getItem('camp-push-off')) ? fake : null; }
+    }, phone || 'phone-' + Math.random().toString(36).slice(2));
     await ctx.route(/\/config\.js(\?|$)/, r => r.fulfill({ status: 200, contentType: 'application/javascript', body: `window.CAMP_CFG=${JSON.stringify(cfg)};` }));
     await ctx.route(MOCK + '/**', async r => { const q = r.request(); const x = await sb.handle(q.method(), q.url(), q.headers(), q.postData());
       await r.fulfill({ status: x.status, headers: x.headers, body: x.body }); });
     await ctx.route(/\/api\/officials/, async r => { const q = r.request();
       const x = await runFn(officials, { method: q.method(), headers: q.headers(), body: q.postData() }); await r.fulfill({ status: x.s, contentType: 'application/json', body: x.b }); });
+    await ctx.route(/\/api\/push/, async r => { const q = r.request();
+      const x = await runFn(push, { method: q.method(), headers: q.headers(), body: q.postData() }); await r.fulfill({ status: x.s, contentType: 'application/json', body: x.b }); });
     await ctx.route(/live\/camp\.json|githubusercontent|jsdelivr/, async r => { const x = await runFn(live, {}); await r.fulfill({ status: x.s, contentType: 'application/json', body: x.b }); });
     await ctx.route(/api\/time/, r => r.fulfill({ status: 404, body: '' }));
     const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
     p.on('dialog', d => d.dismiss());
     return { ctx, p };
   }
-  const CFG = { supabaseUrl: MOCK, supabaseAnon: 'anon', vapidPublic: '' };
+  const CFG = { supabaseUrl: MOCK, supabaseAnon: 'anon', vapidPublic: V.publicKey };
   const signIn = async (p, id, code) => {
     await p.goto(SITE + '/private-admin/'); await p.waitForSelector('#sb-id', { timeout: 8000 });
     await p.fill('#sb-id', id); await p.click('#sb-go'); await p.waitForSelector('#sb-code', { timeout: 8000 });
@@ -73,7 +84,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   await signIn(pa, 'musa@x.ng');
   ok(/Good (morning|afternoon|evening), Musa/.test(await pa.textContent('#main')), 'Today home greets by name');
   ok(/Deputy Camp Director/.test(await pa.textContent('#main')), 'role shown'); await SHOT(pa, '2-home');
-  ok(JSON.stringify(await tabs(pa)) === JSON.stringify(['home', 'time', 'notice', 'fix', 'st', 'menu', 'people', 'act', 'acct']), 'deputy sees every tab');
+  ok(JSON.stringify(await tabs(pa)) === JSON.stringify(['home', 'duties', 'time', 'notice', 'fix', 'st', 'menu', 'people', 'act', 'acct']), 'deputy sees every tab');
 
   console.log('timetable edit saves to the database with a log line');
   await pa.click('[data-tab="time"]'); await pa.click('[data-day="2026-11-05"]'); await pa.click('[data-edit="0"]');
@@ -112,9 +123,9 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   await SHOT(pa, '5-code'); await pa.click('#pe-c'); await pa.waitForTimeout(300); await SHOT(pa, '4-people');
 
   console.log('platoon officer signs in with phone + code');
-  const C = await ctxFor(CFG), pc = C.p;
+  const C = await ctxFor(CFG, 'dan-phone'), pc = C.p;
   await signIn(pc, '0803 111 2222', shown && shown[0]);
-  ok(JSON.stringify(await tabs(pc)) === JSON.stringify(['home', 'notice', 'act', 'acct']), 'platoon officer sees only their tabs: ' + (await tabs(pc)));
+  ok(JSON.stringify(await tabs(pc)) === JSON.stringify(['home', 'duties', 'notice', 'act', 'acct']), 'platoon officer sees only their tabs: ' + (await tabs(pc)));
   await pc.click('[data-tab="notice"]');
   ok(await pc.$eval('.card fieldset', f => f.disabled), "the deputy's notice is read-only for them");
   await pc.click('[data-add-notice]');
@@ -126,7 +137,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   console.log('unit head is limited to their unit');
   const D = await ctxFor(CFG), pd = D.p;
   await signIn(pd, 'ada@x.ng');
-  ok(JSON.stringify(await tabs(pd)) === JSON.stringify(['home', 'notice', 'fix', 'st', 'people', 'act', 'acct']), 'sports head tabs: ' + (await tabs(pd)));
+  ok(JSON.stringify(await tabs(pd)) === JSON.stringify(['home', 'duties', 'notice', 'fix', 'st', 'people', 'act', 'acct']), 'sports head tabs: ' + (await tabs(pd)));
   await pd.evaluate(() => { work.menu[0][0] = 'Hacked tea'; }); await pd.evaluate(() => publish());
   await pd.waitForTimeout(1500);
   ok(/outside what your role can change/.test(await msg(pd)), 'menu change refused with a clear message');
@@ -144,6 +155,44 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   r = JSON.parse((await db.query(`select data::text as d from sections where key='standings'`)).rows[0].d);
   ok(r.points.join() === '12,8,6,4' && r.events[0].places.join() === '3,1,2,', 'both changes kept after a clash on the same section');
   ok(/Published/.test(await msg(pd)), 'second official told it was published: ' + (await msg(pd)).slice(0, 50));
+
+  console.log('alerts on phones');
+  const K = await ctxFor(CFG, 'corps-1'), pk = K.p;
+  await pk.addInitScript(() => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('camp-platoon', '4'); } });
+  await pk.goto(SITE + '/app/?t=2026-11-05T09:00'); await pk.waitForSelector('[data-alerts="on"]', { timeout: 8000 }); await SHOT(pk, '8-corps-alerts');
+  await pk.click('[data-alerts="on"]'); await pk.waitForSelector('[data-alerts="off"]', { timeout: 8000 });
+  r = (await db.query(`select platoon from push_subs where endpoint like '%corps-1'`)).rows[0];
+  ok(r && r.platoon === '4', 'corps member turns on alerts for Platoon 4');
+  await pk.goto(SITE + '/app/?t=2026-11-05T09:00#sports'); await pk.waitForSelector('[data-platoon]'); await pk.selectOption('[data-platoon]', '6'); await pk.waitForTimeout(800);
+  ok((await db.query(`select platoon from push_subs where endpoint like '%corps-1'`)).rows[0].platoon === '6', 'changing platoon moves the alerts too');
+  await pk.goto(SITE + '/app/?t=2026-11-04T10:00'); await pk.waitForTimeout(1500);
+  ok(!/kit inspection/.test(await pk.textContent('body')), "Platoon 4's notice is hidden from Platoon 6");
+  await pk.evaluate(() => localStorage.setItem('camp-platoon', '4')); await pk.reload(); await pk.waitForTimeout(1500);
+  await pk.waitForFunction(() => /kit inspection/.test(document.querySelector('body').textContent), null, { timeout: 6000 }).catch(() => {});
+  const nv = await pk.textContent('body'); ok(/kit inspection/.test(nv) && /PLATOON 4/.test(nv) && /Until end of today/.test(nv), 'and shown, labelled, to Platoon 4, until end of day'); await SHOT(pk, '9-corps-notice');
+  await pc.click('[data-tab="acct"]'); await pc.click('#acct-alerts'); await pc.waitForTimeout(900);
+  ok((await db.query(`select official_id is not null o from push_subs where endpoint like '%dan-phone'`)).rows[0]?.o, "Dan turns on duty alerts on his phone");
+
+  console.log('duties');
+  await pa.click('[data-tab="duties"]'); await pa.waitForSelector('#duty-add'); await pa.click('#duty-add'); await pa.waitForSelector('#du-a');
+  await pa.fill('#du-t', 'Gate duty for morning parade'); await pa.fill('#du-d', 'Report to the RSM at 5:30'); await pa.selectOption('#du-a', danId); await pa.fill('#du-dt', '06:00');
+  await pa.click('#du-ok'); await pa.waitForTimeout(1200);
+  r = (await db.query(`select title, assignee_name, creator_name, status from duties`)).rows[0];
+  ok(r && r.assignee_name === 'Dan Bello' && r.creator_name === 'Musa Adamu' && r.status === 'open', 'deputy assigns a duty to Dan');
+  ok(pushSent.some(x => x.payload.title === 'New duty: Gate duty for morning parade' && x.endpoint.includes('dan-phone')), 'alert sent to Dan\'s phone');
+  await pc.click('[data-tab="duties"]'); await pc.evaluate(() => { DUTIES = null; render(); }); await pc.waitForSelector('[data-duty]');
+  ok(/From Musa Adamu/.test(await pc.textContent('#main')), 'Dan sees who assigned it'); await SHOT(pc, '7-duties');
+  await pc.click('[data-duty]'); await pc.fill('#dn-n', 'Done, 3 stewards on the gate'); await pc.click('#dn-ok'); await pc.waitForTimeout(900);
+  r = (await db.query(`select status, note from duties`)).rows[0];
+  ok(r.status === 'done' && /3 stewards/.test(r.note), 'Dan marks it done with a note');
+  await pa.evaluate(() => { DUTIES = null; render(); }); await pa.waitForTimeout(800);
+  ok(/Done, 3 stewards/.test(await pa.textContent('#main')), 'deputy sees it done with the note');
+
+  console.log('notification for a new announcement');
+  await pa.click('[data-tab="notice"]'); await pa.click('[data-add-notice]');
+  await pa.fill('[data-p$="|title"]', 'Parade moved to 7 AM'); await pa.check('[data-p$="|urgent"]'); await pa.check('[data-p$="|notify"]'); await publish(pa);
+  ok(/Notification sent to 2 phones/.test(await msg(pa)), 'sent to every subscribed phone: ' + (await msg(pa)).slice(-40));
+  ok(pushSent.some(x => x.payload.title === 'Urgent: Parade moved to 7 AM' && x.urgency === 'high'), 'urgent alert sent with high priority');
 
   console.log('access removal');
   await pa.click('[data-tab="people"]'); await pa.waitForSelector(`[data-pp="${danId}"]`); await pa.click(`[data-pp="${danId}"]`);

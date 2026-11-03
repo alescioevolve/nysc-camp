@@ -184,7 +184,7 @@ begin
   if a_id is not null then
     select * into cur from public.announcements where id = a_id and camp_id = o.camp_id for update;
     if cur.id is null then raise exception 'not_found' using errcode = 'P0002'; end if;
-    if not (public.is_lead(o) or cur.created_by = o.id) then raise exception 'not_allowed' using errcode = '42501'; end if;
+    if not (public.is_lead(o) or coalesce(cur.created_by = o.id, false)) then raise exception 'not_allowed' using errcode = '42501'; end if;
   end if;
   if not coalesce(a_remove, false) and not public.can_announce(o, nullif(a_platoon, '')) then
     raise exception 'not_allowed' using errcode = '42501';

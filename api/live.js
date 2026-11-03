@@ -37,8 +37,11 @@ async function fromSupabase() {
   }
   for (const a of anns) {
     const f = local(a.from_at), t = a.to_at ? local(a.to_at) : null;
+    // Midnight means "start of the day" / "end of the previous day", as the app reads empty times
+    const prev = k => { const d = new Date(k + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); };
     out.announcements.push({ id: a.id, title: a.title, body: a.body, urgent: a.urgent, platoon: a.platoon || "",
-      from: f.d, fromT: f.t, to: t ? t.d : f.d, toT: t ? t.t : "", postedAt: a.created_at, by: a.officials?.name || "" });
+      from: f.d, fromT: f.t === "00:00" ? "" : f.t, to: t ? (t.t === "00:00" ? prev(t.d) : t.d) : f.d, toT: t && t.t !== "00:00" ? t.t : "",
+      postedAt: a.created_at, by: a.officials?.name || "" });
     if (a.created_at > newest) { newest = a.created_at; out.updatedBy = a.officials?.name || ""; }
   }
   // An announcement with no end shows until its start day is over, as before; one that runs past midnight needs an end.

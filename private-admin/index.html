@@ -300,6 +300,7 @@ body.locked{overflow:hidden}
   <div id="edit">
     <nav class="tabs" id="tabs">
       <button class="tab" data-tab="home" hidden>Today</button>
+      <button class="tab" data-tab="duties" hidden>Duties</button>
       <button class="tab" data-tab="time">Timetable</button>
       <button class="tab" data-tab="notice">Announcements</button>
       <button class="tab" data-tab="fix">Fixtures &amp; results</button>
@@ -331,6 +332,7 @@ body.locked{overflow:hidden}
 <script src="../data.js"></script>
 <script src="../config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="../push.js"></script>
 <script src="sb.js"></script>
 <script src="team.js"></script>
 <script>
@@ -422,9 +424,9 @@ async function connectSb(){
 }
 /* Tabs follow the official's role in Supabase mode */
 function allowed(t){
-  if (MODE !== "sb") return !["home", "people"].includes(t);
+  if (MODE !== "sb") return !["home", "people", "duties"].includes(t);
   if (!SB.me) return false;
-  return t === "home" || t === "act" || t === "acct"
+  return t === "home" || t === "act" || t === "acct" || t === "duties"
     || (t === "time" && SB.canEdit("days")) || (t === "menu" && SB.canEdit("menu"))
     || (t === "fix" && (SB.canEdit("fixtures") || SB.canEdit("bestLosers"))) || (t === "st" && SB.canEdit("standings"))
     || (t === "notice" && SB.canAnnounce()) || (t === "people" && SB.canPeople());
@@ -878,6 +880,8 @@ function acctTab(){
   if (MODE === "sb") return `<h2>Account</h2><p class="sub">You're signed in on this phone.</p>
     <div class="card acct"><span class="avatar">${esc($("#whoav").textContent)}</span><div><b>${esc(SB.me.name)}</b><span>${esc(SB.roleLabel())}${SB.unit ? " · " + esc(SB.unit.name) : ""}</span></div></div>
     <div class="card"><div class="meal-h">Your access</div><p class="tip">Ends ${new Date(SB.me.expires_at).toLocaleDateString("en-GB",{timeZone:"Africa/Lagos",day:"numeric",month:"long",year:"numeric"})}, after camp closes. Everything you change is recorded under your name.</p></div>
+    ${CampPush.ok ? `<div class="card"><div class="meal-h">Duty alerts on this phone</div><p class="tip">${CampPush.officialOn() ? "On. You'll get a notification when someone assigns you a duty." : "Get a notification when someone assigns you a duty."}</p>
+      ${CampPush.officialOn() ? "" : `<div class="stack"><button class="btn" id="acct-alerts">Turn on alerts</button></div>`}</div>` : ""}
     <div class="card"><div class="meal-h">Latest version</div><p class="tip">Load what other officials have published since you opened this page.</p>
       <div class="stack"><button class="btn" id="reload">Load the latest version</button></div></div>
     <div class="card"><div class="meal-h">Backup</div><p class="tip">Keep a copy of everything on this phone.</p>
@@ -939,7 +943,7 @@ function actTab(){
 function render(){
   const m = $("#main");
   if (!allowed(tab)) tab = MODE === "sb" ? "home" : "time";
-  m.innerHTML = tab === "home" ? homeTab() : tab === "people" ? peopleTab() : tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "st" ? stTab() : tab === "notice" ? noticeTab() : tab === "act" ? actTab() : acctTab();
+  m.innerHTML = tab === "home" ? homeTab() : tab === "duties" ? dutiesTab() : tab === "people" ? peopleTab() : tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "st" ? stTab() : tab === "notice" ? noticeTab() : tab === "act" ? actTab() : acctTab();
   if (tab === "time") {
     const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" });
     if (jumpNow) { jumpNow = false; const r = m.querySelector("[data-now]"); if (r) setTimeout(() => r.scrollIntoView({ block: "center", behavior: "smooth" }), 60); }
@@ -992,7 +996,7 @@ document.addEventListener("click", async e => {
   if (t.id === "lshow") { const i = $("#lcode"); i.type = i.type === "password" ? "text" : "password"; t.textContent = i.type === "password" ? "Show" : "Hide"; return; }
   if (t.id === "reload") {
     if (changes().length && !(await ask("Load the latest version?", "Your unpublished changes on this phone will be replaced.", "Load latest"))) return;
-    store.del("camp-admin-draft"); const r = await connect();
+    store.del("camp-admin-draft"); if (MODE === "sb") { TEAM = null; DUTIES = null; } const r = await connect();
     if (r === "ok") say("You now have the latest version.", "ok"); else say("Couldn't load the latest version. Check your network and try again.", "err"); return;
   }
   if (t.id === "reload-act") { activity = null; render(); return; }

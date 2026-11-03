@@ -189,7 +189,25 @@ window.SB = (() => {
     if (error) throw err(error); return data;
   }
 
-  return { on, db, get me() { return me; }, get camp() { return camp; }, get unit() { return unit; },
+  /* ── Duties ── */
+  async function duties() {
+    const { data, error } = await db.from("duties").select("*").eq("camp_id", me.camp_id).neq("status", "cancelled").order("due_at", { ascending: true }).limit(300);
+    if (error) throw err(error); return data;
+  }
+  async function saveDuty(d, cancel) {
+    const { data, error } = await db.rpc("save_duty", { d_id: d.id || null, d_title: d.title || null, d_details: d.details || "", d_assignee: d.assignee || null, d_due: d.due_at || null, d_cancel: !!cancel });
+    if (error) throw err(error); return data;
+  }
+  async function dutyStatus(id, status, note) {
+    const { data, error } = await db.rpc("duty_status", { d_id: id, d_status: status, d_note: note || "" });
+    if (error) throw err(error); return data;
+  }
+  async function pushDuty(id) {
+    try { const r = await fetch("../api/push", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + await token() }, body: JSON.stringify({ duty: id }) });
+      return (await r.json()).sent || 0; } catch (e) { return 0; }
+  }
+
+  return { on, db, duties, saveDuty, dutyStatus, pushDuty, get me() { return me; }, get camp() { return camp; }, get unit() { return unit; },
     hasSession, token, sendCode, verify, claim, restore, forget, signOut, isEmail, waEmail, ident,
     lead, canEdit, canAnnounce, canPeople, roleLabel, ROLE_NAME, SECTIONS,
     dates, load, signature, publish, activity, people, invite, code, setOfficial, saveUnit, toTs, local };

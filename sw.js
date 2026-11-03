@@ -1,8 +1,8 @@
 /* Offline support: everything is cached on first visit, so the app opens
    with no network. Bump VERSION whenever you change any file. */
-const VERSION = "camp-v23";
+const VERSION = "camp-v24";
 const FILES = [
-  "./", "./index.html", "./data.js", "./pwa.js",
+  "./", "./index.html", "./data.js", "./pwa.js", "./push.js", "./config.js",
   "./app/", "./app/index.html", "./app/manifest.webmanifest",
   "./v2/", "./v2/index.html", "./v2/manifest.webmanifest",
   "./assets/nysc-logo.png",
@@ -55,4 +55,22 @@ self.addEventListener("fetch", e => {
       })
     )
   );
+});
+
+/* ── Phone notifications ── */
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: "Camp Companion", body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Camp Companion", {
+    body: d.body || "", tag: d.tag || undefined, renotify: !!d.tag, requireInteraction: !!d.urgent,
+    icon: "icons/icon-192.png", badge: "icons/favicon.png", data: { url: d.url || "/app/" }, vibrate: d.urgent ? [200, 100, 200] : undefined
+  }));
+});
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "/app/", self.location.origin).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+    const hit = list.find(c => c.url.startsWith(url.split("#")[0]));
+    return hit ? hit.focus().then(c => c && url.includes("#") ? c.navigate(url) : c) : self.clients.openWindow(url);
+  }));
 });

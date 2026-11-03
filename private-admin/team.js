@@ -62,6 +62,9 @@ function homeTab(){
   const hi = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
   const can = SB.SECTIONS.filter(s => SEC_TAB[s] && SB.canEdit(s)).map(s => SEC_TAB[s]);
   if (SB.canAnnounce()) can.unshift(["notice", me.role === "platoon_officer" ? `Announcements for Platoon ${me.platoon}` : "Announcements"]);
+  if (DUTIES === null && !DUTIES_ERR) loadDuties().then(() => { if (tab === "home") render(); });
+  const myOpen = (DUTIES || []).filter(d => d.assignee === me.id && d.status === "open");
+  can.unshift(["duties", myOpen.length ? `Your duties · ${myOpen.length} open` : canAssign() ? "Duties" : "Your duties"]);
   if (SB.canPeople()) can.push(["people", SB.lead() ? "People and roles" : me.role === "coordinator" ? "People (view only)" : "Your unit's people"]);
   const live = CAMP.notices ? work.announcements.filter(a => a.from <= today && today <= (a.to || a.from)).length : 0;
   const dayN = DATES.indexOf(today);
@@ -270,4 +273,92 @@ document.addEventListener("click", e => {
   else if (t.id === "pp-add") addPeople();
   else if (t.id === "unit-add") editUnit(null);
   else if (t.id === "team-retry") { TEAM_ERR = false; render(); }
+});
+
+/* ════════ Duties ════════ */
+let DUTIES = null, DUTIES_ERR = false;
+async function loadDuties(){ try { DUTIES = await SB.duties(); DUTIES_ERR = false; } catch (e) { DUTIES_ERR = true; } return DUTIES; }
+const canAssign = () => !!SB.me && (SB.lead() || SB.me.role === "unit_head");
+const dueTxt = ts => ts ? new Date(ts).toLocaleString("en-GB", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true }) : "";
+function dutiesTab(){
+  if (!DUTIES && !DUTIES_ERR) { loadDuties().then(() => { if (tab === "duties") render(); }); return `<h2>Duties</h2><p class="sub">Loading…</p>`; }
+  if (DUTIES_ERR) return `<h2>Duties</h2><div class="card empty">Couldn't load duties. Check your network.<div class="stack"><button class="btn" id="duty-retry">Try again</button></div></div>`;
+  const me = SB.me, now = Date.now();
+  const mine = DUTIES.filter(d => d.assignee === me.id), others = DUTIES.filter(d => d.assignee !== me.id);
+  const row = d => { const late = d.status === "open" && d.due_at && new Date(d.due_at).getTime() < now;
+    return `<button class="tl-row" data-duty="${d.id}" style="grid-template-columns:26px minmax(0,1fr) auto">
+      <span style="font-size:18px;color:${d.status === "done" ? "var(--green-2)" : late ? "var(--alert)" : "var(--faint)"}">${d.status === "done" ? "✓" : "○"}</span>
+      <span><span class="nm" style="${d.status === "done" ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(d.title)}</span>
+        <span class="mt">${esc([d.assignee === me.id ? `From ${d.creator_name || "an official"}` : d.assignee_name, d.due_at && (late ? "Overdue · " : "Due ") + dueTxt(d.due_at), d.status === "done" && d.note].filter(Boolean).join(" · "))}</span></span>
+      <span class="rt">›</span></button>`; };
+  const sect = (label, list) => list.length ? `<div class="meal-h" style="margin:14px 2px 6px">${label} <span style="color:var(--muted);font-weight:500">· ${list.filter(d => d.status === "open").length} open</span></div>
+    <div class="card tl">${[...list.filter(d => d.status === "open"), ...list.filter(d => d.status === "done")].map(row).join("")}</div>` : "";
+  const alertBtn = CampPush.ok && !CampPush.officialOn() ? `<div class="card"><div class="meal-h">Get duty alerts on this phone</div><p class="tip">You'll get a notification when someone assigns you a duty.</p><div class="stack"><button class="btn" id="duty-alerts">Turn on alerts</button></div></div>` : "";
+  return `<h2>Duties</h2><p class="sub">${canAssign() ? "Assign tasks to officials, see who's done what, and follow up on anything overdue." : "Tasks assigned to you. Mark each one done when it's finished."}</p>
+    ${canAssign() ? `<button class="btn full primary" id="duty-add" style="margin-bottom:12px">+ Assign a duty</button>` : ""}
+    ${alertBtn}
+    ${sect("Assigned to you", mine)}${sect(SB.lead() || me.role === "coordinator" ? "Everyone else" : "You assigned", others)}
+    ${!DUTIES.length ? `<div class="card empty">No duties yet.</div>` : ""}`;
+}
+function editDuty(id){
+  const me = SB.me, d0 = id ? DUTIES.find(x => x.id === id) : null;
+  if (d0 && !(SB.lead() || d0.created_by === me.id)) return dutyDone(d0);
+  const go = () => {
+    const people = TEAM.officials.filter(o => o.active && (SB.lead() || o.unit_id === me.unit_id)).sort((a, b) => a.name.localeCompare(b.name));
+    const today = lagosToday(), due = d0 && d0.due_at ? SB.local(d0.due_at) : { d: DATES.includes(today) ? today : DATES[0], t: "" };
+    const d = openSheet(`<div class="grab"></div><h3>${d0 ? "Change duty" : "Assign a duty"}</h3>
+      <label class="f"><span>What needs doing</span><input type="text" id="du-t" value="${esc(d0 ? d0.title : "")}" placeholder="e.g. Gate duty for the morning parade"></label>
+      <label class="f"><span>Details (optional)</span><textarea id="du-d" rows="3" placeholder="Where, what to bring, who to report to">${esc(d0 ? d0.details : "")}</textarea></label>
+      <label class="f"><span>Assign to</span><select id="du-a"><option value="">Choose a person</option>${people.map(o => `<option value="${o.id}" ${d0 && d0.assignee === o.id ? "selected" : ""}>${esc(o.name)} · ${esc(SB.roleLabel(o))}</option>`).join("")}</select></label>
+      <div class="row"><label class="f"><span>Due date</span><input type="date" id="du-dd" value="${esc(due.d)}"></label>
+        <label class="f"><span>Time (optional)</span><input type="time" id="du-dt" value="${esc(due.t === "00:00" ? "" : due.t)}"></label></div>
+      ${CampPush.ready ? `<label class="check"><input type="checkbox" id="du-n" ${d0 ? "" : "checked"}> Send an alert to their phone</label>` : ""}
+      <div class="warn" id="du-w"></div>
+      <div class="sheet-f">${d0 ? `<button class="del" id="du-rm">Cancel duty</button>` : ""}<button class="btn ghost" id="du-c">Close</button><button class="btn primary" id="du-ok">${d0 ? "Save" : "Assign"}</button></div>`);
+    d.querySelector("#du-c").onclick = () => closeSheet();
+    d.querySelector("#du-ok").onclick = async () => {
+      const t = d.querySelector("#du-t").value.trim(), a = d.querySelector("#du-a").value, dd = d.querySelector("#du-dd").value, dt = d.querySelector("#du-dt").value;
+      const w = !t ? "Say what needs doing." : !a ? "Choose who it's for." : ""; if (w) { d.querySelector("#du-w").textContent = w; return; }
+      const btn = d.querySelector("#du-ok"); btn.disabled = true;
+      try {
+        const nid = await SB.saveDuty({ id: d0 && d0.id, title: t, details: d.querySelector("#du-d").value.trim(), assignee: a, due_at: dd ? SB.toTs(dd, dt || "23:59") : null });
+        const n = d.querySelector("#du-n"), sent = n && n.checked ? await SB.pushDuty(nid) : 0;
+        DUTIES = null; closeSheet(); render();
+        toast(d0 ? "Duty updated" : `Duty assigned${n && n.checked ? (sent ? " · alert sent" : " · they haven't turned on alerts") : ""}`);
+      } catch (e) { btn.disabled = false; d.querySelector("#du-w").textContent = /not_allowed/.test(e.message) ? "You can only assign people in your unit." : "Couldn't save. Check your network."; }
+    };
+    const rm = d.querySelector("#du-rm"); if (rm) rm.onclick = async () => {
+      if (!(await ask(`Cancel "${d0.title}"?`, `It comes off ${d0.assignee_name}'s list.`, "Cancel duty"))) return;
+      try { await SB.saveDuty(d0, true); DUTIES = null; closeSheet(); render(); toast("Duty cancelled"); } catch (e) { d.querySelector("#du-w").textContent = "Couldn't cancel it."; }
+    };
+  };
+  if (TEAM) go(); else loadTeam().then(() => TEAM ? go() : toast("Couldn't load the list of officials"));
+}
+function dutyDone(d0){
+  const done = d0.status === "done";
+  const d = openSheet(`<div class="grab"></div><h3>${esc(d0.title)}</h3>
+    <p class="sub">${esc([`From ${d0.creator_name || "an official"}`, d0.due_at && "Due " + dueTxt(d0.due_at)].filter(Boolean).join(" · "))}</p>
+    ${d0.details ? `<p class="tip" style="color:var(--ink);font-size:14.5px;margin-bottom:10px">${esc(d0.details).replace(/\n/g, "<br>")}</p>` : ""}
+    ${done ? `<p class="tip">Done ${dueTxt(d0.done_at)}${d0.note ? ` · ${esc(d0.note)}` : ""}</p>` : `<label class="f"><span>Note (optional)</span><input type="text" id="dn-n" placeholder="e.g. Done, 3 stewards on the gate"></label>`}
+    <div class="warn" id="dn-w"></div>
+    <div class="sheet-f"><button class="btn ghost" id="dn-c">Close</button><button class="btn ${done ? "" : "primary"}" id="dn-ok">${done ? "Reopen" : "Mark done"}</button></div>`);
+  d.querySelector("#dn-c").onclick = () => closeSheet();
+  d.querySelector("#dn-ok").onclick = async () => {
+    try { await SB.dutyStatus(d0.id, done ? "open" : "done", done ? "" : d.querySelector("#dn-n").value.trim()); DUTIES = null; closeSheet(); render(); toast(done ? "Reopened" : "Marked done"); }
+    catch (e) { d.querySelector("#dn-w").textContent = "Couldn't save. Check your network."; }
+  };
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t || !window.SB || !SB.me) return;
+  if (t.dataset.duty) { const d = DUTIES.find(x => x.id === t.dataset.duty); if (!d) return;
+    /* your own open duty: mark it done. One you assigned: change it. Anything else: view it. */
+    if (d.assignee === SB.me.id && d.status === "open") dutyDone(d);
+    else if (SB.lead() || d.created_by === SB.me.id) editDuty(d.id); else dutyDone(d); }
+  else if (t.id === "duty-add") editDuty(null);
+  else if (t.id === "duty-retry") { DUTIES_ERR = false; render(); }
+  else if (t.id === "duty-alerts" || t.id === "acct-alerts") {
+    t.disabled = true; t.textContent = "Turning on…";
+    try { const r = await CampPush.linkOfficial(await SB.token()); toast(r === "on" ? "Alerts are on for this phone" : "Notifications are blocked. Allow them in your browser settings."); } catch (x) { toast("Couldn't turn on alerts. Try again."); }
+    render();
+  }
 });

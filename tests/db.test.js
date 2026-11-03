@@ -97,6 +97,30 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   ok((await as('sporthead', `select save_unit(null,'Hack','general','{menu}')`)).err === 'not_allowed', 'only leads manage units');
   ok((await as('dir', `select save_unit(null,'Medical','medical','{}') id`)).rows, 'director adds a unit');
 
+  console.log('push subscriptions');
+  ok((await as(null, `select push_subscribe('https://fcm.googleapis.com/x1','k','a','4') r`)).rows[0].r === true, 'corps member subscribes without an account');
+  ok((await as(null, `select push_subscribe('http://evil/x','k','a','4')`)).err, 'non-https endpoint refused');
+  ok((await as(null, `select push_subscribe('https://fcm.googleapis.com/x1','k','a','9')`)).rows, 'changing platoon updates the same phone');
+  ok((await as('dir', `select push_link_official('https://fcm.googleapis.com/x1','k','a') r`)).rows, 'official links the same phone');
+  r = (await db.query(`select platoon, official_id is not null as o, count(*) over () n from push_subs`)).rows[0];
+  ok(r.platoon === '9' && r.o && +r.n === 1, 'one row per phone keeps platoon and official');
+  ok((await as(null, `select * from push_subs`)).err?.includes('permission'), 'public cannot read subscriptions');
+  ok((await as('dir', `select * from push_subs`)).err?.includes('permission'), 'officials cannot read subscriptions either');
+
+  console.log('duties');
+  r = await as('sporthead', `select save_duty(null,'Set up volleyball net','Court B',$1,'2026-11-05T15:00:00Z') id`, [await id('SportMem')]);
+  ok(r.rows, 'unit head assigns a duty in their unit');
+  const did = r.rows[0].id;
+  ok((await as('sporthead', `select save_duty(null,'x','',$1,null)`, [await id('Dep')])).err === 'not_allowed', 'unit head cannot assign outside their unit');
+  ok((await as('dep', `select save_duty(null,'Gate duty','',$1,null) id`, [await id('Del')])).rows, 'deputy assigns anyone');
+  ok((await as('sportmem', `select title from duties`)).rows.map(x => x.title).join() === 'Set up volleyball net', 'assignee sees only their duty');
+  ok((await as('dep', `select title from duties`)).rows.length === 2, 'deputy sees all duties');
+  ok((await as('del', `select duty_status($1,'done','')`, [did])).err === 'not_allowed', 'someone else cannot mark it done');
+  ok((await as('sportmem', `select duty_status($1,'done','Net is up') id`, [did])).rows, 'assignee marks it done with a note');
+  r = (await db.query(`select status, note, done_at is not null d from duties where id=$1`, [did])).rows[0];
+  ok(r.status === 'done' && r.note === 'Net is up' && r.d, 'status, note and time saved');
+  ok((await as('sporthead', `select save_duty($1,null,null,null,null,true)`, [did])).rows, 'creator cancels it');
+
   console.log('audit log');
   const log = (await as('dir', `select action, actor_name, target, lines from audit order by id`)).rows;
   ok(log.length >= 9, `${log.length} actions logged`);

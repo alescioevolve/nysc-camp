@@ -25,5 +25,13 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/push.js": {
+      "maxDuration": 60
+    },
+    "api/officials.js": {
+      "maxDuration": 30
+    }
+  }
 }

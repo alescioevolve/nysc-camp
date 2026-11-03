@@ -437,8 +437,10 @@
   /* Announcements showing on a given date (from ≤ date ≤ to), urgent first.
      Optional fromT / toT ("HH:MM") narrow the window; pass the minute of day to hide ones not started or already over. */
   const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const myPlatoon = () => { try { return localStorage.getItem("camp-platoon") || ""; } catch (e) { return ""; } };
   const notices = (k, m) => announcements
     .filter(a => {
+      if (a.platoon && a.platoon !== myPlatoon() && PREVIEW !== "draft" && PREVIEW !== "live") return false;
       if (!(a.from <= k && k <= (a.to || a.from))) return false;
       if (m == null) return true;
       const t = `${k} ${hhmm(m)}`, s = `${a.from} ${a.fromT || "00:00"}`, e = `${a.to || a.from} ${a.toT || "24:00"}`;
