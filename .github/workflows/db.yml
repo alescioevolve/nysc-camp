@@ -1,10 +1,8 @@
 # Applies new database migrations to Supabase whenever they land on main.
 # Needs three repo secrets: SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_PROJECT_REF.
 name: Database
+# Migrations are applied through the Supabase connector for this project, so this runs only by hand.
 on:
-  push:
-    branches: [main]
-    paths: ["supabase/migrations/**"]
   workflow_dispatch:
 jobs:
   migrate:

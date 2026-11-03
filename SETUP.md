@@ -1,5 +1,10 @@
 # Turning on the Supabase pilot (Batch C Stream II)
 
+**Status (3 Nov):** project `camp-companion` (ref `vjnbuvkwmkdgewmbpbck`, London) is created, all four
+migrations are applied through the Supabase connector, Stream II is loaded, and the first director exists.
+`config.js` points at it. Don't add the GitHub secrets in step 2: the workflow is manual-only now, and running
+it would try to re-apply migrations that are already in.
+
 Until these steps are done, the app runs exactly as before: corps members see the Stream II
 programme from the GitHub copy and officials sign in with access codes.
 
