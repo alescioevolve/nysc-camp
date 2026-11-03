@@ -43,7 +43,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
     /* A pretend phone: notifications allowed, and the browser's push service returns a fixed address */
     await ctx.addInitScript(ep => {
-      const fake = { endpoint: 'https://push.example/' + ep, toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'BPk', auth: 'au' } }; }, unsubscribe: async () => true };
+      const fake = { endpoint: 'https://fcm.googleapis.com/fcm/send/' + ep, toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'BPk', auth: 'au' } }; }, unsubscribe: async () => true };
       try { Object.defineProperty(Notification, 'permission', { get: () => 'granted' }); Notification.requestPermission = async () => 'granted'; } catch (e) {}
       if (window.PushManager) { PushManager.prototype.subscribe = async () => fake; PushManager.prototype.getSubscription = async () => (localStorage.getItem('camp-push') || localStorage.getItem('camp-push-off')) ? fake : null; }
     }, phone || 'phone-' + Math.random().toString(36).slice(2));
@@ -214,6 +214,13 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   await pa.fill('[data-p$="|title"]', 'Parade moved to 7 AM'); await pa.check('[data-p$="|urgent"]'); await pa.check('[data-p$="|notify"]'); await publish(pa);
   ok(/Notification sent to 2 phones/.test(await msg(pa)), 'sent to every subscribed phone: ' + (await msg(pa)).slice(-40));
   ok(pushSent.some(x => x.payload.title === 'Urgent: Parade moved to 7 AM' && x.urgency === 'high'), 'urgent alert sent with high priority');
+
+  console.log('edits and deletions reach phones');
+  const f1 = JSON.parse((await runFn(live, {})).b).updatedAt;
+  await new Promise(r => setTimeout(r, 1100));
+  await pa.click('[data-tab="notice"]'); await pa.click('[data-del-notice]'); await pa.click('[data-yes]'); await publish(pa);
+  const f2 = JSON.parse((await runFn(live, {})).b);
+  ok(f2.updatedAt > f1 && !f2.announcements.some(a => a.title === 'Parade moved to 7 AM'), 'deleting a notice makes the feed newer, so phones drop it');
 
   console.log('access removal');
   await pa.click('[data-tab="people"]'); await pa.waitForSelector(`[data-pp="${danId}"]`); await pa.click(`[data-pp="${danId}"]`);

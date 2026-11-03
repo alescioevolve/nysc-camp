@@ -28,7 +28,9 @@ const lead = me => ["admin", "director", "deputy"].includes(me.role);
 
 const fmt = ts => new Date(ts).toLocaleString("en-GB", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
 
+const HOST_OK = /^https:\/\/(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.push\.apple\.com|[a-z0-9.-]+\.notify\.windows\.com)\//;
 async function send(subs, payload, urgent) {
+  subs = subs.filter(s => HOST_OK.test(s.endpoint));
   let sent = 0, gone = [];
   const body = JSON.stringify(payload);
   for (let i = 0; i < subs.length; i += 50) {

@@ -99,10 +99,11 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   ok((await as('dir', `select save_unit(null,'Medical','medical','{}') id`)).rows, 'director adds a unit');
 
   console.log('push subscriptions');
-  ok((await as(null, `select push_subscribe('https://fcm.googleapis.com/x1','k','a','4') r`)).rows[0].r === true, 'corps member subscribes without an account');
+  ok((await as(null, `select push_subscribe('https://fcm.googleapis.com/fcm/send/x1','k','a','4') r`)).rows[0].r === true, 'corps member subscribes without an account');
   ok((await as(null, `select push_subscribe('http://evil/x','k','a','4')`)).err, 'non-https endpoint refused');
-  ok((await as(null, `select push_subscribe('https://fcm.googleapis.com/x1','k','a','9')`)).rows, 'changing platoon updates the same phone');
-  ok((await as('dir', `select push_link_official('https://fcm.googleapis.com/x1','k','a') r`)).rows, 'official links the same phone');
+  ok((await as(null, `select push_subscribe('https://evil.example/x','k','a','4')`)).err, 'made-up push address refused');
+  ok((await as(null, `select push_subscribe('https://fcm.googleapis.com/fcm/send/x1','k','a','9')`)).rows, 'changing platoon updates the same phone');
+  ok((await as('dir', `select push_link_official('https://fcm.googleapis.com/fcm/send/x1','k','a') r`)).rows, 'official links the same phone');
   r = (await db.query(`select platoon, official_id is not null as o, count(*) over () n from push_subs`)).rows[0];
   ok(r.platoon === '9' && r.o && +r.n === 1, 'one row per phone keeps platoon and official');
   ok((await as(null, `select * from push_subs`)).err?.includes('permission'), 'public cannot read subscriptions');

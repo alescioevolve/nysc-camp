@@ -335,6 +335,11 @@
 
   const BUILT_IN = clone({ schema: 1, updatedAt: "", updatedBy: "", days, menu, fixtures: F, announcements: [], bestLosers: {}, standings: DEFAULT_ST });
 
+  const clock = { skew: 0, checked: 0 };
+  try { const c = JSON.parse(localStorage.getItem("camp-clock") || "null"); if (c && typeof c.skew === "number") Object.assign(clock, c); } catch (e) {}
+  /* A copy dated more than 10 minutes ahead of the (corrected) clock is never trusted:
+     it would otherwise block every later update, because phones only take newer copies. */
+  const future = c => !!(c && c.updatedAt && Date.parse(c.updatedAt) > Date.now() + clock.skew + 10 * 60 * 1000);
   function valid(c) {
     return c && c.schema === 1 && c.days && typeof c.days === "object" && Array.isArray(c.menu) && c.menu.length === 7
       && Array.isArray(c.fixtures) && Array.isArray(c.announcements);
@@ -354,6 +359,8 @@
     Object.keys(standings).forEach(k => delete standings[k]);
     Object.assign(standings, JSON.parse(JSON.stringify(c.standings || DEFAULT_ST)));
     keys.splice(0, keys.length, ...Object.keys(days).sort());
+    const n = c.camp && +c.camp.platoons;
+    if (n >= 1 && n <= 40 && n !== PLATOONS.length) PLATOONS.splice(0, PLATOONS.length, ...Array.from({ length: n }, (_, i) => String(i + 1)));
     meta.updatedAt = c.updatedAt || ""; meta.updatedBy = c.updatedBy || "";
     return true;
   }
@@ -364,7 +371,7 @@
   /* 1. Last copy saved on this phone */
   try {
     const saved = JSON.parse(localStorage.getItem("camp-content") || "null");
-    if (saved && (saved.updatedAt || "") > meta.updatedAt) apply(saved);
+    if (saved && !future(saved) && (saved.updatedAt || "") > meta.updatedAt) apply(saved);
   } catch (e) {}
 
   /* 2. Latest copy, when there is signal. Tries each route in turn; the first good one wins. */
@@ -378,16 +385,14 @@
   /* The site's shared copy first (fresh within 30 s, and it spares GitHub). If that fails,
      ask GitHub and the backup CDN together and keep the newer copy. */
   async function latest() {
-    if (HERE) { const c = await get(HERE, true); if (valid(c)) return c; }
+    if (HERE) { const c = await get(HERE, true); if (valid(c) && !future(c)) return c; }
     const got = await Promise.all([RAW, CDN].map(u => get(u)));
-    return got.filter(valid).sort((x, y) => (y.updatedAt || "").localeCompare(x.updatedAt || ""))[0] || null;
+    return got.filter(c => valid(c) && !future(c)).sort((x, y) => (y.updatedAt || "").localeCompare(x.updatedAt || ""))[0] || null;
   }
 
   /* ── Phone clock check ──
      Phones set to the wrong date or time would show the wrong "now". Compare with the server
      and keep the difference (saved, so it still works offline). Small differences are ignored. */
-  const clock = { skew: 0, checked: 0 };
-  try { const c = JSON.parse(localStorage.getItem("camp-clock") || "null"); if (c && typeof c.skew === "number") Object.assign(clock, c); } catch (e) {}
   function syncClock() {
     if (!TIME || typeof fetch !== "function") return;
     const t0 = Date.now();

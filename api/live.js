@@ -22,9 +22,11 @@ async function fromSupabase() {
   const [camp] = await rest("camps?active=eq.true&select=id,name,starts_on,ends_on,platoons&limit=1");
   if (!camp) return null;
   const id = encodeURIComponent(camp.id);
-  const [secs, anns] = await Promise.all([
+  const [secs, anns, lastAnn] = await Promise.all([
     rest(`sections?camp_id=eq.${id}&select=key,data,updated_at,officials(name)`),
-    rest(`announcements?camp_id=eq.${id}&removed=eq.false&select=id,title,body,urgent,platoon,from_at,to_at,created_at,officials(name)&order=created_at.desc&limit=200`)
+    rest(`announcements?camp_id=eq.${id}&removed=eq.false&select=id,title,body,urgent,platoon,from_at,to_at,created_at,updated_at,officials(name)&order=created_at.desc&limit=200`),
+    // the latest change to any announcement, removed ones included, so edits and deletions reach phones
+    rest(`announcements?camp_id=eq.${id}&select=updated_at&order=updated_at.desc&limit=1`)
   ]);
   if (!secs.length) return null; // camp not loaded yet: keep serving the old copy
   const out = { schema: 1, updatedAt: "", updatedBy: "", camp: { id: camp.id, name: camp.name, startsOn: camp.starts_on, endsOn: camp.ends_on, platoons: camp.platoons },
@@ -42,8 +44,11 @@ async function fromSupabase() {
     out.announcements.push({ id: a.id, title: a.title, body: a.body, urgent: a.urgent, platoon: a.platoon || "",
       from: f.d, fromT: f.t === "00:00" ? "" : f.t, to: t ? (t.t === "00:00" ? prev(t.d) : t.d) : f.d, toT: t && t.t !== "00:00" ? t.t : "",
       postedAt: a.created_at, by: a.officials?.name || "" });
-    if (a.created_at > newest) { newest = a.created_at; out.updatedBy = a.officials?.name || ""; }
+    if (a.updated_at > newest) { newest = a.updated_at; out.updatedBy = a.officials?.name || ""; }
   }
+  if (lastAnn[0] && lastAnn[0].updated_at > newest) newest = lastAnn[0].updated_at;
+  // Use the real Lagos-time camp size for the platoon picker
+  out.camp.platoons = camp.platoons;
   // An announcement with no end shows until its start day is over, as before; one that runs past midnight needs an end.
   out.updatedAt = newest ? new Date(newest).toISOString() : new Date().toISOString();
   return JSON.stringify(out);
