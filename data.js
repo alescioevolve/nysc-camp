@@ -1,7 +1,12 @@
-/* NYSC 2026 Batch 'C' Stream I Orientation Course
+/* NYSC 2026 Batch 'C' Stream II Orientation Course (4 to 24 November 2026)
+   Built from the Stream I programme, which ran the same weekdays 35 days earlier.
+   Provisional: officials confirm and change it from the admin.
+   (Stream I notes follow.)
    Source: official timetable (3 sheets) and camp menu, checked cell by cell.
    Edit this one file if the camp announces a change; both versions read it. */
 (function () {
+  const SHIFT = 35;   // Stream I (30 Sep) → Stream II (4 Nov), same weekday
+  const shiftK = k => { const d = new Date(k + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + SHIFT); return d.toISOString().slice(0, 10); };
   const RV = ["05:20","05:30","Reveille"];
   const AN = ["05:30","05:40","National Anthems and Meditation"];
   const AT = ["05:40","06:00","Attendance by Platoon Officers"];
@@ -176,6 +181,9 @@
       ["06:30", "10:00", "Carnival Preparations", "Cultural Fiesta starts 10:00 AM at the Parade Ground"],
       ["10:00", "14:00", "Cultural Fiesta · Camp Carnival", "Theme: Tongues and Tribes May Differ: My Culture My Pride", "Parade Ground"]); })();
 
+  /* Move the whole programme to the Stream II dates */
+  Object.keys(days).sort().forEach(k => { const v = days[k]; delete days[k]; days[shiftK(k)] = v; });
+
   /* ── INTER-PLATOON FIXTURES (official sheets, subject to amendment) ──
      [date, time, sport, match no., stage, side A, side B, note]  Numbers in "W1" etc. are match numbers within that sport. */
   const R1 = "Round 1", QF = "Quarter-final", SF = "Semi-final", TP = "Third place", FN = "Final";
@@ -204,7 +212,8 @@
     ["2026-10-14","07:00",14,TP,"L10","L11"], ["2026-10-16","07:00",15,FN,"W10","W11"]]);
   add("Athletics", [
     ["2026-10-12","15:00",null,"Heats","",""], ["2026-10-13","15:00",null,"Heats final","",""]]);
-  F.sort((x, y) => (x.d + x.t).localeCompare(y.d + y.t));
+ F.sort((x, y) => (x.d + x.t).localeCompare(y.d + y.t));
+  F.length = 0;   // Stream II fixtures are drawn at camp; officials add them from the admin
 
   /* "W1" → "Winner of #1", "BL2" → "Best loser 2", "8" → "Platoon 8" */
   const side = s => /^W(\d+)$/.test(s) ? `Winner #${s.slice(1)}` : /^L(\d+)$/.test(s) ? `Loser #${s.slice(1)}`
@@ -273,7 +282,7 @@
      Football, volleyball and badminton places come from their brackets (final and third-place match).
      Socials and athletics are events where officials enter 1st to 4th. Hidden until officials switch it on. */
   const PLATOONS = ["1","2","3","4","5","6","7","8","9","10"];
-  const ev = (id, kind, name, d) => ({ id, kind, name, d, places: ["", "", "", ""] });
+  const ev = (id, kind, name, d) => ({ id, kind, name, d: shiftK(d), places: ["", "", "", ""] });
   const DEFAULT_ST = { visible: false, points: [10, 7, 5, 3], adjust: [], events: [
     ev("s-dancehall", "social", "Inter-Platoon Dance Hall Competition", "2026-10-03"),
     ev("s-talent", "social", "Inter-Platoon Talent Hunt / Comedy Night", "2026-10-05"),
@@ -438,7 +447,7 @@
     .sort((x, y) => (y.urgent ? 1 : 0) - (x.urgent ? 1 : 0) || (y.postedAt || "").localeCompare(x.postedAt || ""));
 
   window.CAMP = {
-    title: "2026 Batch C · Stream I",
+    title: "2026 Batch C · Stream II",
     days, menu, meals, toM, fixtures, myFirstRound, side, notices, meta, keys,
     allFixtures: F, bestLosers, resolve, sides, played, myMatches,
     sports: ["Football", "Volleyball", "Badminton (singles)", "Athletics"],

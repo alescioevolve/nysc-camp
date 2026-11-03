@@ -5,7 +5,7 @@
 <script>if(!/\/$/.test(location.pathname))location.replace(location.pathname+"/"+location.search+location.hash)</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0A5C36">
-<meta name="description" content="Unofficial live companion for NYSC 2026 Batch C Stream I: what's happening now, what's next and today's menu. Works offline.">
+<meta name="description" content="Unofficial live companion for NYSC 2026 Batch C Stream II: what's happening now, what's next and today's menu. Works offline.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Camp Companion">
 <title>Camp Companion · NYSC 2026 Batch C</title>
@@ -336,7 +336,7 @@ footer .credit a{color:var(--green-2);text-decoration:none;font-weight:700}
       <img src="../assets/nysc-logo.png" alt="NYSC logo" width="240" height="304">
       <div>
         <h2>Camp Companion</h2>
-        <p>Batch C · Stream I</p>
+        <p>Batch C · Stream II</p>
         <span class="off" data-offline hidden></span>
       </div>
     </div>
@@ -582,7 +582,7 @@ function outsideHTML(n){
   if (n.date < DAYS[0]){
     const d = Math.round((dO(DAYS[0]) - dO(n.date))/864e5);
     return `<section class="card empty"><div class="k" style="justify-content:center">Orientation camp</div>
-      <h1>Starts in ${d} day${d>1?"s":""}</h1><p class="s">Wednesday, 30 September 2026 · screening from 5:20 AM</p></section>`;
+      <h1>Starts in ${d} day${d>1?"s":""}</h1><p class="s">${dO(DAYS[0]).toLocaleDateString("en-GB",{timeZone:"UTC",weekday:"long",day:"numeric",month:"long",year:"numeric"})}${(T[DAYS[0]]||[])[0] ? ` · ${esc(((T[DAYS[0]][0][2]||"").split(/[ ,]/)[0]||"").toLowerCase())} from ${fmt(toM(T[DAYS[0]][0][0]))}` : ""}</p></section>`;
   }
   return `<section class="card empty"><div class="k" style="justify-content:center">Orientation camp</div>
     <h1>Camp has ended</h1><p class="s">Congratulations on completing orientation. Good luck at your PPA.</p></section>`;
