@@ -2,8 +2,8 @@
    The caller sends their own Supabase session token; we check who they are and what
    their role allows before doing anything. Every action lands in the audit log. */
 const URL_ = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ROLES = ["director", "deputy", "coordinator", "unit_head", "unit_member", "platoon_officer", "delegate"];
-const SECTIONS = ["days", "menu", "fixtures", "bestLosers", "standings"];
+const ROLES = ["admin", "director", "deputy", "coordinator", "unit_head", "unit_member", "platoon_officer", "delegate"];
+const SECTIONS = ["days", "menu", "roster", "fixtures", "bestLosers", "standings"];
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
 async function call(path, opt = {}) {
@@ -46,12 +46,13 @@ function check(p, me, units) {
   if (role === "platoon_officer" && !p.platoon) return { error: "Platoon officers need a platoon" };
   const scopes = (p.scopes || []).filter(s => SECTIONS.includes(s));
   if (role === "delegate" && !scopes.length) return { error: "Delegates need at least one thing they can edit" };
-  const lead = ["director", "deputy"].includes(me.role);
+  const lead = ["admin", "director", "deputy"].includes(me.role);
   if (!lead) {
     if (me.role !== "unit_head") return { error: "Not allowed" };
     if (!["unit_member", "delegate"].includes(role) || !unit || unit.id !== me.unit_id) return { error: "You can only add members or delegates to your own unit" };
   }
-  if (role === "director" && me.role !== "director") return { error: "Only a director can add a director" };
+  if (role === "admin" && me.role !== "admin") return { error: "Only app support can add app support" };
+  if (role === "director" && !["director", "admin"].includes(me.role)) return { error: "Only the Camp Director can add a Camp Director" };
   return { row: { name, email: email || waEmail(phone), email_real: !!email, phone: phone || null, role,
     unit_id: unit ? unit.id : null, platoon: p.platoon ? String(p.platoon) : null, scopes: role === "delegate" ? scopes : [] } };
 }
@@ -85,7 +86,7 @@ async function invite(me, people, dry) {
 async function code(me, id) {
   const t = (await rest(`officials?id=eq.${encodeURIComponent(id)}&camp_id=eq.${encodeURIComponent(me.camp_id)}&select=*`)).body?.[0];
   if (!t || !t.active) return { status: 404, body: { error: "Not found" } };
-  const lead = ["director", "deputy"].includes(me.role);
+  const lead = ["admin", "director", "deputy"].includes(me.role);
   if (!lead && !(me.role === "unit_head" && t.unit_id === me.unit_id)) return { status: 403, body: { error: "Not allowed" } };
   const g = await call("/auth/v1/admin/generate_link", { method: "POST", body: JSON.stringify({ type: "magiclink", email: t.email }) });
   const otp = g.body?.email_otp || g.body?.properties?.email_otp;

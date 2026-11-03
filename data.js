@@ -275,6 +275,7 @@
   const HERE = (() => { try { return new URL("live/camp.json", document.currentScript.src).href; } catch (e) { return ""; } })();
   const TIME = (() => { try { return new URL("api/time", document.currentScript.src).href; } catch (e) { return ""; } })();
   const announcements = [];
+  const roster = {};      // date → platoon on kitchen duty
   const meta = { updatedAt: "", updatedBy: "" };
   const keys = Object.keys(days).sort();
   const clone = o => JSON.parse(JSON.stringify(o));
@@ -347,6 +348,7 @@
     F.splice(0, F.length, ...c.fixtures);
     F.sort((x, y) => (x.d + x.t).localeCompare(y.d + y.t));
     announcements.splice(0, announcements.length, ...c.announcements);
+    Object.keys(roster).forEach(k => delete roster[k]); Object.assign(roster, c.roster || {});
     Object.keys(bestLosers).forEach(k => delete bestLosers[k]);
     Object.assign(bestLosers, c.bestLosers || {});
     Object.keys(standings).forEach(k => delete standings[k]);
@@ -356,7 +358,7 @@
     return true;
   }
   function exportContent() {
-    return clone({ schema: 1, updatedAt: meta.updatedAt, updatedBy: meta.updatedBy, days, menu, fixtures: F, announcements, bestLosers, standings });
+    return clone({ schema: 1, updatedAt: meta.updatedAt, updatedBy: meta.updatedBy, days, menu, roster, fixtures: F, announcements, bestLosers, standings });
   }
 
   /* 1. Last copy saved on this phone */
@@ -450,7 +452,7 @@
 
   window.CAMP = {
     title: "2026 Batch C · Stream II",
-    days, menu, meals, toM, fixtures, myFirstRound, side, notices, meta, keys,
+    days, menu, roster, meals, toM, fixtures, myFirstRound, side, notices, meta, keys,
     allFixtures: F, bestLosers, resolve, sides, played, myMatches,
     sports: ["Football", "Volleyball", "Badminton (singles)", "Athletics"],
     stages: ["Round 1", "Quarter-final", "Semi-final", "Third place", "Final", "Heats", "Heats final"],

@@ -15,7 +15,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   await db.exec(`delete from camps;  -- drop the seeded Stream II camp; tests make their own
     insert into camps (id,name,starts_on,ends_on,active,platoons) values ('c2','Batch C Stream II','2026-11-04','2026-11-24',true,10);
     insert into units (id,camp_id,name,kind,sections) values ('22222222-0000-0000-0000-000000000001','c2','Sports','sports','{fixtures,bestLosers,standings}'),
-      ('22222222-0000-0000-0000-000000000002','c2','Kitchen','kitchen','{menu}');
+      ('22222222-0000-0000-0000-000000000002','c2','Kitchen','kitchen','{menu,roster}');
     insert into auth.users (email) values ('musa@x.ng'),('ada@x.ng');
     insert into officials (camp_id,name,email,role,unit_id,expires_at) values
       ('c2','Musa Adamu','musa@x.ng','deputy',null, now()+interval '30 days'),
@@ -116,6 +116,19 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   ok(r.length === 4 && r.some(x => x.name === 'Dan Bello' && x.role === 'platoon_officer' && x.platoon === '7' && !x.email_real), 'Dan added as Platoon 7 officer with phone sign-in');
   ok((await db.query(`select lines from audit where action='invite'`)).rows[0].lines.length === 2, 'invite logged');
 
+  console.log('add one person with the form');
+  await pa.click('#pp-one'); await pa.waitForSelector('#pf-n');
+  ok(!(await pa.$$eval('#pf-r option', o => o.map(x => x.value))).some(v => v === 'admin' || v === 'director'), 'deputy cannot pick App support or Camp Director');
+  await pa.fill('#pf-n', 'Efe Okon'); await pa.fill('#pf-ph', '07012345678'); await pa.selectOption('#pf-r', 'unit_head');
+  ok(await pa.isVisible('#pf-uw') && !(await pa.isVisible('#pf-pw')) && /Runs a unit/.test(await pa.textContent('#pf-rd')), 'only the unit dropdown shows, with a plain description');
+  await pa.click('#pf-ok'); ok(/Choose a unit/.test(await pa.textContent('#pf-w')), 'asks for the unit');
+  await pa.selectOption('#pf-u', { label: 'Kitchen' }); await SHOT(pa, '3b-addone'); await pa.click('#pf-ok');
+  await pa.waitForSelector('#pe-codev', { timeout: 8000 }).catch(() => {});
+  r = (await db.query(`select o.role, u.name unit from officials o join units u on u.id=o.unit_id where o.name='Efe Okon'`)).rows[0];
+  ok(r && r.role === 'unit_head' && r.unit === 'Kitchen', 'Efe added as Kitchen unit head');
+  ok(await pa.isVisible('#pe-codev'), 'phone-only person: their WhatsApp code opens straight away');
+  await pa.click('#pe-c'); await pa.waitForTimeout(300);
+
   console.log('WhatsApp code for a phone-only official');
   await pa.waitForSelector('[data-pp]'); const danId = (await db.query(`select id from officials where name='Dan Bello'`)).rows[0].id;
   await pa.click(`[data-pp="${danId}"]`); await pa.click('#pe-code'); await pa.waitForSelector('#pe-copy', { timeout: 8000 });
@@ -157,6 +170,11 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   ok(r.points.join() === '12,8,6,4' && r.events[0].places.join() === '3,1,2,', 'both changes kept after a clash on the same section');
   ok(/Published/.test(await msg(pd)), 'second official told it was published: ' + (await msg(pd)).slice(0, 50));
 
+  console.log('kitchen duty');
+  await pa.click('[data-tab="menu"]'); await pa.click('[data-rday="2026-11-05"]'); await pa.selectOption('[data-p="r|2026-11-05"]', '3'); await publish(pa);
+  ok(JSON.parse((await db.query(`select data::text d from sections where key='roster'`)).rows[0].d)['2026-11-05'] === '3', 'Platoon 3 set on kitchen duty for Thu 5 Nov');
+  ok((await db.query(`select lines from audit where target='roster'`)).rows[0].lines[0] === 'Kitchen duty, Thu 5 Nov: Platoon 3', 'logged in plain words');
+
   console.log('alerts on phones');
   const K = await ctxFor(CFG, 'corps-1'), pk = K.p;
   await pk.addInitScript(() => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('camp-platoon', '4'); } });
@@ -168,7 +186,9 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   ok((await db.query(`select platoon from push_subs where endpoint like '%corps-1'`)).rows[0].platoon === '6', 'changing platoon moves the alerts too');
   await pk.goto(SITE + '/app/?t=2026-11-04T10:00'); await pk.waitForTimeout(1500);
   ok(!/kit inspection/.test(await pk.textContent('body')), "Platoon 4's notice is hidden from Platoon 6");
-  await pk.evaluate(() => localStorage.setItem('camp-platoon', '4')); await pk.reload(); await pk.waitForTimeout(1500);
+  await pk.goto(SITE + '/app/?t=2026-11-05T09:00'); await pk.waitForFunction(() => /Kitchen duty/.test(document.body.textContent), null, { timeout: 6000 }).catch(() => {});
+  ok(/Kitchen duty: Platoon 3/.test(await pk.textContent('body')), 'corps members see the kitchen duty platoon');
+  await pk.evaluate(() => localStorage.setItem('camp-platoon', '4')); await pk.goto(SITE + '/app/?t=2026-11-04T10:00'); await pk.waitForTimeout(1500);
   await pk.waitForFunction(() => /kit inspection/.test(document.querySelector('body').textContent), null, { timeout: 6000 }).catch(() => {});
   const nv = await pk.textContent('body'); ok(/kit inspection/.test(nv) && /PLATOON 4/.test(nv) && /Until end of today/.test(nv), 'and shown, labelled, to Platoon 4, until end of day'); await SHOT(pk, '9-corps-notice');
   await pc.click('[data-tab="acct"]'); await pc.click('#acct-alerts'); await pc.waitForTimeout(900);

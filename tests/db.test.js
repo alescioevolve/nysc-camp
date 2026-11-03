@@ -122,6 +122,17 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   ok(r.status === 'done' && r.note === 'Net is up' && r.d, 'status, note and time saved');
   ok((await as('sporthead', `select save_duty($1,null,null,null,null,true)`, [did])).rows, 'creator cancels it');
 
+  console.log('app support role and kitchen roster');
+  await db.exec(`insert into auth.users values ('11111111-0000-0000-0000-000000000009','dev@x.ng');
+    insert into officials (camp_id,name,email,role,expires_at,user_id) values ('c2','Dev','dev@x.ng','admin', now()+interval '20 days','11111111-0000-0000-0000-000000000009');`);
+  U.dev = '11111111-0000-0000-0000-000000000009';
+  ok((await as('dev', `select save_section('menu','[]'::jsonb,0) v`)).rows, 'app support edits anything');
+  ok((await as('dev', `select (set_official($1,'director',null,null,null,null,true)).role r`, [await id('Dep')])).rows?.[0].r === 'director', 'app support can make a director');
+  ok((await as('dir', `select set_official($1,'deputy',null,null,null,null,true)`, [await id('Dev')])).err === 'not_allowed', 'a director cannot change app support');
+  ok((await as('dir', `select set_official($1,'admin',null,null,null,null,true)`, [await id('Del')])).err === 'not_allowed', 'only app support grants app support');
+  ok((await as('dev', `select save_section('roster','{"2026-11-05":"3"}'::jsonb,0) v`)).rows, 'roster section saves');
+  await db.exec(`update units set sections='{menu,roster}' where name='Kitchen'`);
+
   console.log('audit log');
   const log = (await as('dir', `select action, actor_name, target, lines from audit order by id`)).rows;
   ok(log.length >= 9, `${log.length} actions logged`);

@@ -24,7 +24,7 @@ async function caller(req) {
   const r = await rest(`officials?user_id=eq.${u.body.id}&active=eq.true&expires_at=gt.${new Date().toISOString()}&select=*,camps!inner(id,active)&camps.active=eq.true&limit=1`);
   return r.ok && r.body?.[0] ? r.body[0] : null;
 }
-const lead = me => ["director", "deputy"].includes(me.role);
+const lead = me => ["admin", "director", "deputy"].includes(me.role);
 
 const fmt = ts => new Date(ts).toLocaleString("en-GB", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
 

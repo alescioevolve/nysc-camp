@@ -7,15 +7,14 @@ const SIGNIN = { id: "", step: "id" };
 function sbLoginHTML(){
   const s = SIGNIN;
   return s.step === "id" ? `
-    <label class="f"><span>Email or phone number</span><input type="text" id="sb-id" autocomplete="username" inputmode="email" value="${esc(s.id)}" placeholder="e.g. musa@gmail.com or 0803 123 4567" required></label>
-    <button class="btn primary" type="submit" id="sb-go">Continue</button>
-    <p class="help">Use the email or phone number the Camp Director or Deputy added you with.</p>`
+    <label class="f"><span>Email or phone number</span><input type="text" id="sb-id" autocomplete="username" inputmode="email" value="${esc(s.id)}" placeholder="Email or phone number" required></label>
+    <button class="btn primary" type="submit" id="sb-go">Continue</button>`
   : `<p class="help" style="margin:0 0 10px">${SB.isEmail(s.id)
-      ? `We sent a 6-digit code to <b>${esc(s.id)}</b>. Check your inbox and spam folder.`
-      : `Ask the Deputy Camp Director or your unit head for your sign-in code. They can send it to you on WhatsApp.`}</p>
-    <label class="f"><span>Sign-in code</span><input type="text" id="sb-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="6 digits" required></label>
+      ? `Enter the code we sent to <b>${esc(s.id)}</b>.`
+      : `Enter the code the Deputy Camp Director or your unit head sent you.`}</p>
+    <label class="f"><span>Code</span><input type="text" id="sb-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code" required></label>
     <button class="btn primary" type="submit" id="sb-go">Sign in</button>
-    <div class="stack" style="margin-top:8px"><button class="btn ghost" type="button" id="sb-back">Use a different email or phone</button>
+    <div class="stack" style="margin-top:8px"><button class="btn ghost" type="button" id="sb-back">Change email or phone</button>
       ${SB.isEmail(s.id) ? `<button class="btn ghost" type="button" id="sb-resend">Send a new code</button>` : ""}</div>`;
 }
 function paintSbLogin(){ const f = $("#sbform-in"); if (f) { f.innerHTML = sbLoginHTML(); const i = f.querySelector("input"); if (i) setTimeout(() => i.focus(), 50); } }
@@ -31,7 +30,7 @@ async function sbSubmit(e){
       SIGNIN.step = "code"; paintSbLogin();
     } else {
       const code = $("#sb-code").value.replace(/\D/g, "");
-      if (code.length < 6) { say("Enter the 6-digit code.", "err", "#smsg"); return; }
+      if (code.length < 6) { say("Enter the full code.", "err", "#smsg"); return; }
       btn.textContent = "Signing in…";
       const me = await SB.verify(SIGNIN.id, code);
       if (!me) { await SB.signOut(); say("You're signed in, but you're not on this camp's list of officials. Ask the Deputy Camp Director to add you.", "err", "#smsg"); SIGNIN.step = "id"; paintSbLogin(); return; }
@@ -53,14 +52,14 @@ document.addEventListener("click", async e => {
 });
 
 /* ════════ Today (home) ════════ */
-const SEC_TAB = { days: ["time", "Timetable"], menu: ["menu", "Menu"], fixtures: ["fix", "Fixtures and results"], standings: ["st", "Standings"] };
+const SEC_TAB = { days: ["time", "Timetable"], menu: ["menu", "Menu"], roster: ["menu", "Kitchen duty"], fixtures: ["fix", "Fixtures and results"], standings: ["st", "Standings"] };
 function homeTab(){
   const me = SB.me, today = lagosToday(), items = (work.days[today] || []), m = lagosMin();
   const now = items.find(x => toM(x[0]) <= m && m < endM(x)), next = items.find(x => toM(x[0]) > m);
   const first = (me.name || "").split(/\s+/)[0];
   const hr = +new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", hour: "numeric", hourCycle: "h23" }).format(new Date());
   const hi = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
-  const can = SB.SECTIONS.filter(s => SEC_TAB[s] && SB.canEdit(s)).map(s => SEC_TAB[s]);
+  const can = SB.SECTIONS.filter(s => SEC_TAB[s] && SB.canEdit(s)).map(s => SEC_TAB[s]).filter((x, i, l) => l.findIndex(y => y[0] === x[0]) === i);
   if (SB.canAnnounce()) can.unshift(["notice", me.role === "platoon_officer" ? `Announcements for Platoon ${me.platoon}` : "Announcements"]);
   if (DUTIES === null && !DUTIES_ERR) loadDuties().then(() => { if (tab === "home") render(); });
   const myOpen = (DUTIES || []).filter(d => d.assignee === me.id && d.status === "open");
@@ -93,13 +92,24 @@ function teamSummary(){
 /* ════════ People ════════ */
 let TEAM = null, TEAM_ERR = false;
 async function loadTeam(){ try { TEAM = await SB.people(); TEAM_ERR = false; } catch (e) { TEAM_ERR = true; } return TEAM; }
-const ROLE_ORDER = ["director", "deputy", "coordinator", "unit_head", "unit_member", "platoon_officer", "delegate"];
-const SEC_NAME = { days: "Timetable", menu: "Menu", fixtures: "Fixtures and results", bestLosers: "Best losers", standings: "Standings" };
+const ROLE_ORDER = ["admin", "director", "deputy", "coordinator", "unit_head", "unit_member", "platoon_officer", "delegate"];
+const ROLE_DESC = {
+  admin: "Sets up and supports the app. Can change everything.",
+  director: "Can change everything and manage all officials.",
+  deputy: "Can change everything and manage officials.",
+  coordinator: "Can see everything, but can't change it.",
+  unit_head: "Runs a unit. Posts announcements and manages the unit's people.",
+  unit_member: "Helps a unit with what it looks after.",
+  platoon_officer: "Posts announcements to their own platoon.",
+  delegate: "A helper. Can change only what you switch on below." };
+const SEC_NAME = { days: "Timetable", menu: "Menu", roster: "Kitchen duty", fixtures: "Fixtures and results", bestLosers: "Best losers", standings: "Standings" };
+const SEC_LIST = ["days", "menu", "roster", "fixtures", "bestLosers", "standings"];
 const initials = n => String(n || "").split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
 function grantable(){
   const me = SB.me;
-  if (me.role === "director") return ROLE_ORDER;
-  if (me.role === "deputy") return ROLE_ORDER.filter(r => r !== "director");
+  if (me.role === "admin") return ROLE_ORDER;
+  if (me.role === "director") return ROLE_ORDER.filter(r => r !== "admin");
+  if (me.role === "deputy") return ROLE_ORDER.filter(r => !["admin", "director"].includes(r));
   if (me.role === "unit_head") return ["unit_member", "delegate"];
   return [];
 }
@@ -108,20 +118,74 @@ function peopleTab(){
   if (TEAM_ERR) return `<h2>People</h2><div class="card empty">Couldn't load the list. Check your network.<div class="stack"><button class="btn" id="team-retry">Try again</button></div></div>`;
   const me = SB.me, canAdd = grantable().length > 0, lead = SB.lead();
   const units = TEAM.units, by = {};
-  TEAM.officials.forEach(o => { const k = o.unit_id || (["director", "deputy", "coordinator"].includes(o.role) ? "_lead" : o.role === "platoon_officer" ? "_po" : "_other"); (by[k] = by[k] || []).push(o); });
-  const groups = [["_lead", "Camp leadership"], ...units.map(u => [u.id, u.name]), ["_po", "Platoon officers"], ["_other", "Others"]].filter(([k]) => by[k]);
+  TEAM.officials.forEach(o => { const k = o.role === "admin" ? "_support" : o.unit_id || (["director", "deputy", "coordinator"].includes(o.role) ? "_lead" : o.role === "platoon_officer" ? "_po" : "_other"); (by[k] = by[k] || []).push(o); });
+  const groups = [["_lead", "Camp leadership"], ...units.map(u => [u.id, u.name]), ["_po", "Platoon officers"], ["_other", "Others"], ["_support", "App support"]].filter(([k]) => by[k]);
   const row = o => `<button class="tl-row" data-pp="${o.id}" style="grid-template-columns:40px minmax(0,1fr) auto;${o.active ? "" : "opacity:.5"}">
       <span class="avatar" style="width:34px;height:34px;font-size:12.5px">${esc(initials(o.name))}</span>
-      <span><span class="nm">${esc(o.name)}${o.id === me.id ? " (you)" : ""}</span><span class="mt">${esc(SB.roleLabel(o))}${!o.active ? " · access removed" : ""}${o.email_real ? "" : " · WhatsApp codes"}</span></span>
+      <span><span class="nm">${esc(o.name)}${o.id === me.id ? " (you)" : ""}</span><span class="mt">${esc(SB.roleLabel(o))}${!o.active ? " · no access" : ""}</span></span>
       <span class="rt">›</span></button>`;
-  return `<h2>People</h2><p class="sub">${lead ? "Add officials, choose what each person can change, and send sign-in codes." : me.role === "unit_head" ? `Add members and delegates to ${esc(SB.unit ? SB.unit.name : "your unit")}, and send them sign-in codes.` : "Who's on the camp's list of officials."}</p>
-    ${canAdd ? `<button class="btn full primary" id="pp-add" style="margin-bottom:12px">+ Add officials</button>` : ""}
+  return `<h2>People</h2><p class="sub">${canAdd ? "Tap a person to change their role or send them a sign-in code." : "Officials on this camp."}</p>
+    ${canAdd ? `<div class="row" style="margin-bottom:12px"><button class="btn primary" id="pp-one">+ Add a person</button><button class="btn" id="pp-add">Paste a list</button></div>` : ""}
     ${groups.map(([k, label]) => `<div class="meal-h" style="margin:14px 2px 6px">${esc(label)} <span style="color:var(--muted);font-weight:500">· ${by[k].length}</span></div>
       <div class="card tl">${by[k].sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || a.name.localeCompare(b.name)).map(row).join("")}</div>`).join("") || `<div class="card empty">No officials yet.</div>`}
     ${lead ? `<div class="meal-h" style="margin:18px 2px 6px">Units</div>
       <div class="card tl">${units.map(u => `<button class="tl-row" data-unit="${u.id}" style="grid-template-columns:minmax(0,1fr) auto">
-        <span><span class="nm">${esc(u.name)}</span><span class="mt">${u.sections.length ? "Can change: " + u.sections.map(s => SEC_NAME[s]).join(", ") : "Announcements only"}</span></span><span class="rt">›</span></button>`).join("") || `<div class="empty">No units yet.</div>`}</div>
+        <span><span class="nm">${esc(u.name)}</span><span class="mt">${u.sections.length ? u.sections.map(s => SEC_NAME[s]).join(", ") : "Announcements only"}</span></span><span class="rt">›</span></button>`).join("") || `<div class="empty">No units yet.</div>`}</div>
       <button class="btn full" id="unit-add">+ Add a unit</button>` : ""}`;
+}
+
+/* ── One form for adding or changing a person: dropdowns and switches, only the fields that apply ── */
+const NEEDS_UNIT = ["unit_head", "unit_member", "delegate"];
+function personFields(x, isNew){
+  const me = SB.me, ROLES = grantable(), units = TEAM.units.filter(u => SB.lead() || u.id === me.unit_id);
+  const n = (SB.camp && SB.camp.platoons) || CAMP.platoons.length;
+  return `${isNew ? `<label class="f"><span>Full name</span><input type="text" id="pf-n" autocapitalize="words" value="${esc(x.name || "")}"></label>
+    <label class="f"><span>Phone number</span><input type="tel" id="pf-ph" inputmode="tel" value="${esc(x.phone || "")}" placeholder="0803 123 4567"></label>
+    <label class="f"><span>Email (optional)</span><input type="email" id="pf-em" inputmode="email" value="${esc(x.email || "")}"></label>
+    <p class="tip" style="margin:-4px 0 10px">No email? You'll send their sign-in code on WhatsApp.</p>` : ""}
+    <label class="f"><span>Role</span><select id="pf-r">${isNew ? `<option value="">Choose a role</option>` : ""}${ROLES.map(r => `<option value="${r}" ${r === x.role ? "selected" : ""}>${esc(SB.ROLE_NAME[r])}</option>`).join("")}${!x.role || ROLES.includes(x.role) ? "" : `<option selected>${esc(SB.ROLE_NAME[x.role])}</option>`}</select></label>
+    <p class="tip" id="pf-rd" style="margin:-4px 0 10px"></p>
+    <label class="f" id="pf-uw"><span>Unit</span><select id="pf-u"><option value="">Choose a unit</option>${units.map(u => `<option value="${u.id}" ${u.id === x.unit_id ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select></label>
+    <label class="f" id="pf-pw"><span>Platoon</span><select id="pf-p"><option value="">Choose a platoon</option>${Array.from({ length: n }, (_, i) => String(i + 1)).map(p => `<option value="${p}" ${p === String(x.platoon || "") ? "selected" : ""}>Platoon ${p}</option>`).join("")}</select></label>
+    <div id="pf-sw"><div class="meal-h" style="margin:4px 0 6px">Can change</div>
+      ${SEC_LIST.map(s => `<label class="switch-row" style="padding:8px 0"><b style="font-weight:600">${SEC_NAME[s]}</b><input type="checkbox" class="switch" data-sc="${s}" ${(x.scopes || []).includes(s) ? "checked" : ""}></label>`).join("")}</div>`;
+}
+function wirePerson(d){
+  const show = () => { const r = d.querySelector("#pf-r").value;
+    d.querySelector("#pf-rd").textContent = ROLE_DESC[r] || "";
+    d.querySelector("#pf-uw").hidden = !NEEDS_UNIT.includes(r);
+    d.querySelector("#pf-pw").hidden = r !== "platoon_officer"; d.querySelector("#pf-sw").hidden = r !== "delegate"; };
+  show(); d.querySelector("#pf-r").onchange = show;
+}
+function readPerson(d){
+  const r = d.querySelector("#pf-r").value, out = { role: r,
+    unit_id: NEEDS_UNIT.includes(r) ? d.querySelector("#pf-u").value || null : null,
+    platoon: r === "platoon_officer" ? d.querySelector("#pf-p").value : null,
+    scopes: r === "delegate" ? [...d.querySelectorAll("[data-sc]:checked")].map(c => c.dataset.sc) : [] };
+  const w = !r ? "Choose a role." : ["unit_head", "unit_member"].includes(r) && !out.unit_id ? "Choose a unit."
+    : r === "platoon_officer" && !out.platoon ? "Choose a platoon." : r === "delegate" && !out.scopes.length ? "Switch on at least one thing they can change." : "";
+  return { out, w };
+}
+function addOne(){
+  const d = openSheet(`<div class="grab"></div><h3>Add a person</h3>${personFields({}, true)}
+    <div class="warn" id="pf-w"></div>
+    <div class="sheet-f"><button class="btn ghost" id="pf-c">Cancel</button><button class="btn primary" id="pf-ok">Add</button></div>`);
+  wirePerson(d); setTimeout(() => d.querySelector("#pf-n").focus(), 250);
+  d.querySelector("#pf-c").onclick = () => closeSheet();
+  d.querySelector("#pf-ok").onclick = async () => {
+    const { out, w } = readPerson(d), name = d.querySelector("#pf-n").value.trim(), phone = d.querySelector("#pf-ph").value.trim(), email = d.querySelector("#pf-em").value.trim();
+    const warn = !name ? "Enter their name." : !phone && !email ? "Enter a phone number or an email." : w;
+    if (warn) { d.querySelector("#pf-w").textContent = warn; return; }
+    const unit = (TEAM.units.find(u => u.id === out.unit_id) || {}).name || "";
+    const btn = d.querySelector("#pf-ok"); btn.disabled = true; btn.textContent = "Adding…";
+    try {
+      const r = await SB.invite([{ name, phone, email, role: out.role, unit, platoon: out.platoon || "", scopes: out.scopes }], false), x = r.results[0];
+      if (!x.ok) { d.querySelector("#pf-w").textContent = x.error; btn.disabled = false; btn.textContent = "Add"; return; }
+      closeSheet(); TEAM = null; await loadTeam(); render();
+      toast(`${name} added`);
+      if (!email) editPerson(x.id, true);   // phone only: straight to sending their code
+    } catch (e) { d.querySelector("#pf-w").textContent = e.message || "Couldn't add them. Check your network."; btn.disabled = false; btn.textContent = "Add"; }
+  };
 }
 
 /* ── Paste a list: works with spreadsheet rows, comma lists and WhatsApp messages ── */
@@ -150,10 +214,10 @@ function parseList(txt, units){
 }
 function addPeople(){
   const units = TEAM ? TEAM.units : [];
-  const d = openSheet(`<div class="grab"></div><h3>Add officials</h3>
-    <p class="sub">Paste one person per line, straight from a spreadsheet or a WhatsApp list. Put in their name, phone or email, role, and unit or platoon.</p>
-    <p class="tip" style="margin-bottom:8px">Example:<br><code>Musa Adamu, 08031234567, musa@gmail.com, Deputy</code><br><code>Ada Obi, 08051112222, Sports, Unit head</code><br><code>Bayo Ade, 07033334444, Platoon officer, Platoon 4</code></p>
-    <label class="f"><span>List of officials</span><textarea id="pp-txt" rows="7" placeholder="One person per line"></textarea></label>
+  const d = openSheet(`<div class="grab"></div><h3>Paste a list</h3>
+    <p class="sub">One person per line: name, phone or email, role, and their unit or platoon. A copied spreadsheet or WhatsApp list works.</p>
+    <p class="tip" style="margin-bottom:8px">For example:<br><code>Ada Obi, 08051112222, Sports, Unit head</code><br><code>Bayo Ade, 07033334444, Platoon officer, Platoon 4</code></p>
+    <label class="f"><span>List</span><textarea id="pp-txt" rows="7" placeholder="One person per line"></textarea></label>
     <div id="pp-prev"></div><div class="warn" id="pp-w"></div>
     <div class="sheet-f"><button class="btn ghost" id="pp-c">Cancel</button><button class="btn primary" id="pp-check">Check list</button></div>`);
   let rows = [], ready = [];
@@ -168,7 +232,7 @@ function addPeople(){
         const okN = r.results.filter(x => x.ok).length, bad = r.results.filter(x => !x.ok);
         closeSheet(); TEAM = null; render();
         toast(`${okN} official${okN === 1 ? "" : "s"} added${bad.length ? `, ${bad.length} skipped` : ""}`);
-        say(okN ? "Added. Email users can sign in now with the code they're sent. For phone-only officials, open their name and tap Send code on WhatsApp." : "No one was added. Check the list and try again.", okN ? "ok" : "err");
+        say(okN ? "Added. People with email get their code when they sign in. For phone-only people, tap their name and send the code on WhatsApp." : "No one was added. Check the list and try again.", okN ? "ok" : "err");
       } catch (x) { d.querySelector("#pp-w").textContent = x.message || "Couldn't add them. Try again."; btn.disabled = false; btn.textContent = "Add them"; }
       return;
     }
@@ -189,44 +253,29 @@ function addPeople(){
     finally { btn.disabled = false; }
   };
 }
-function editPerson(id){
+function editPerson(id, codeNow){
   const o = TEAM.officials.find(x => x.id === id); if (!o) return;
-  const me = SB.me, ROLES = grantable(), self = o.id === me.id;
-  const canChange = !self && (SB.lead() ? !(o.role === "director" && me.role !== "director") : me.role === "unit_head" && o.unit_id === me.unit_id && ["unit_member", "delegate"].includes(o.role));
+  const me = SB.me, canChange = SB.canChangeRole(o);
   const canCode = o.active && (SB.lead() || (me.role === "unit_head" && o.unit_id === me.unit_id));
-  let x = { ...o, scopes: [...(o.scopes || [])] };
-  const units = TEAM.units.filter(u => SB.lead() || u.id === me.unit_id);
   const d = openSheet(`<div class="grab"></div><h3>${esc(o.name)}</h3>
     <p class="sub">${esc([o.email_real ? o.email : "", o.phone].filter(Boolean).join(" · ") || "No contact")}</p>
-    ${canChange ? `<label class="f"><span>Role</span><select id="pe-r">${ROLES.map(r => `<option value="${r}" ${r === x.role ? "selected" : ""}>${esc(SB.ROLE_NAME[r])}</option>`).join("")}${ROLES.includes(x.role) ? "" : `<option selected>${esc(SB.ROLE_NAME[x.role])}</option>`}</select></label>
-      <label class="f" id="pe-uw"><span>Unit</span><select id="pe-u"><option value="">None</option>${units.map(u => `<option value="${u.id}" ${u.id === x.unit_id ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select></label>
-      <label class="f" id="pe-pw"><span>Platoon</span><input type="number" inputmode="numeric" min="1" max="40" id="pe-p" value="${esc(x.platoon || "")}"></label>
-      <div id="pe-sw"><div class="meal-h" style="margin-top:8px">Can change</div>${["days", "menu", "fixtures", "bestLosers", "standings"].map(s => `<label class="check"><input type="checkbox" data-sc="${s}" ${x.scopes.includes(s) ? "checked" : ""}> ${SEC_NAME[s]}</label>`).join("")}</div>`
-      : `<p class="tip">${esc(SB.roleLabel(o))}${o.unit_id ? " · " + esc((TEAM.units.find(u => u.id === o.unit_id) || {}).name || "") : ""}</p>`}
-    <div class="warn" id="pe-w"></div>
-    ${canCode ? `<div class="stack"><button class="btn" id="pe-code">Send a sign-in code on WhatsApp</button></div>` : ""}
-    <div class="sheet-f">${canChange ? `<button class="del" id="pe-rm">${o.active ? "Remove access" : "Restore access"}</button>` : ""}
+    ${canChange ? personFields(o, false) : `<p class="tip">${esc(SB.roleLabel(o))}${o.unit_id ? " · " + esc((TEAM.units.find(u => u.id === o.unit_id) || {}).name || "") : ""}</p>`}
+    <div class="warn" id="pf-w"></div>
+    ${canCode ? `<div class="stack"><button class="btn" id="pe-code">Send sign-in code on WhatsApp</button></div>` : ""}
+    <div class="sheet-f">${canChange ? `<button class="del" id="pe-rm">${o.active ? "Remove access" : "Give access back"}</button>` : ""}
       <button class="btn ghost" id="pe-c">${canChange ? "Cancel" : "Close"}</button>${canChange ? `<button class="btn primary" id="pe-ok">Save</button>` : ""}</div>`);
-  const show = () => { if (!canChange) return; const r = d.querySelector("#pe-r").value;
-    d.querySelector("#pe-uw").hidden = !["unit_head", "unit_member", "delegate"].includes(r);
-    d.querySelector("#pe-pw").hidden = r !== "platoon_officer"; d.querySelector("#pe-sw").hidden = r !== "delegate"; };
-  show(); if (canChange) d.querySelector("#pe-r").onchange = show;
+  if (canChange) wirePerson(d);
   d.querySelector("#pe-c").onclick = () => closeSheet();
   const save = async active => {
-    const r = canChange ? d.querySelector("#pe-r").value : x.role;
-    const out = { id: o.id, role: r, unit_id: ["unit_head", "unit_member", "delegate"].includes(r) ? d.querySelector("#pe-u").value || null : null,
-      platoon: r === "platoon_officer" ? d.querySelector("#pe-p").value.trim() : null,
-      scopes: r === "delegate" ? [...d.querySelectorAll("[data-sc]:checked")].map(c => c.dataset.sc) : [], active };
-    const w = ["unit_head", "unit_member"].includes(r) && !out.unit_id ? "Choose a unit." : r === "platoon_officer" && !out.platoon ? "Enter the platoon number."
-      : r === "delegate" && !out.scopes.length ? "Tick at least one thing they can change." : "";
-    if (w) { d.querySelector("#pe-w").textContent = w; return false; }
-    try { await SB.setOfficial(out); TEAM = null; closeSheet(); render(); return true; }
-    catch (e) { d.querySelector("#pe-w").textContent = /not_allowed/.test(e.message) ? "You can't make that change." : "Couldn't save. Check your network."; return false; }
+    const { out, w } = canChange ? readPerson(d) : { out: { role: o.role, unit_id: o.unit_id, platoon: o.platoon, scopes: o.scopes } , w: "" };
+    if (w && active) { d.querySelector("#pf-w").textContent = w; return false; }
+    try { await SB.setOfficial({ id: o.id, ...out, active }); TEAM = null; closeSheet(); render(); return true; }
+    catch (e) { d.querySelector("#pf-w").textContent = /not_allowed/.test(e.message) ? "You can't make that change." : "Couldn't save. Check your network."; return false; }
   };
   const ok = d.querySelector("#pe-ok"); if (ok) ok.onclick = async () => { if (await save(o.active)) toast(`Saved ${o.name}`); };
   const rm = d.querySelector("#pe-rm"); if (rm) rm.onclick = async () => {
-    if (o.active && !(await ask(`Remove ${o.name}'s access?`, "They're signed out straight away and can't change anything. You can restore access later.", "Remove access"))) return;
-    if (await save(!o.active)) toast(o.active ? `${o.name} no longer has access` : `${o.name}'s access is back`);
+    if (o.active && !(await ask(`Remove ${o.name}'s access?`, "They're signed out straight away. You can give access back later.", "Remove access"))) return;
+    if (await save(!o.active)) toast(o.active ? `${o.name} no longer has access` : `${o.name} has access again`);
   };
   const cb = d.querySelector("#pe-code"); if (cb) cb.onclick = async () => {
     cb.disabled = true; cb.textContent = "Making a code…";
@@ -237,21 +286,22 @@ function editPerson(id){
       const ph = String(o.phone || "").replace(/\D/g, "").replace(/^0/, "234");
       cb.outerHTML = `<div class="card" style="text-align:center"><div class="tip">Sign-in code for ${esc(o.name)}</div>
         <div id="pe-codev" style="font:800 32px Inter,sans-serif;letter-spacing:.18em;margin:6px 0">${esc(r.code)}</div><div class="tip">Works once · expires in 1 hour</div>
-        <div class="stack">${ph ? `<a class="btn primary" href="https://wa.me/${ph}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Open WhatsApp with the message</a>` : ""}
-        <button class="btn" id="pe-copy">Copy the message</button></div></div>`;
+        <div class="stack">${ph ? `<a class="btn primary" href="https://wa.me/${ph}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Send on WhatsApp</a>` : ""}
+        <button class="btn" id="pe-copy">Copy message</button></div></div>`;
       d.querySelector("#pe-copy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(msg).then(() => toast("Message copied")); };
-    } catch (x) { cb.disabled = false; cb.textContent = "Send a sign-in code on WhatsApp"; d.querySelector("#pe-w").textContent = x.message || "Couldn't make a code."; }
+    } catch (x) { cb.disabled = false; cb.textContent = "Send sign-in code on WhatsApp"; d.querySelector("#pf-w").textContent = x.message || "Couldn't make a code."; }
   };
+  if (codeNow && cb) setTimeout(() => cb.click(), 300);
 }
 const KINDS = [["programme", "Programme / timetable"], ["sports", "Sports"], ["socials", "Socials"], ["kitchen", "Kitchen"], ["saed", "SAED"], ["medical", "Medical"], ["welfare", "Welfare"], ["security", "Security"], ["general", "Other"]];
-const KIND_SEC = { programme: ["days"], sports: ["fixtures", "bestLosers", "standings"], socials: ["standings"], kitchen: ["menu"] };
+const KIND_SEC = { programme: ["days"], sports: ["fixtures", "bestLosers", "standings"], socials: ["standings"], kitchen: ["menu", "roster"] };
 function editUnit(id){
   const isNew = !id, u = isNew ? { name: "", kind: "general", sections: [] } : { ...TEAM.units.find(x => x.id === id) };
   const d = openSheet(`<div class="grab"></div><h3>${isNew ? "New unit" : esc(u.name)}</h3>
     <label class="f"><span>Name</span><input type="text" id="un-n" value="${esc(u.name)}" placeholder="e.g. Sports"></label>
     <label class="f"><span>Type</span><select id="un-k">${KINDS.map(([k, l]) => `<option value="${k}" ${k === u.kind ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-    <div class="meal-h" style="margin-top:8px">Members can change</div>
-    ${["days", "menu", "fixtures", "bestLosers", "standings"].map(s => `<label class="check"><input type="checkbox" data-us="${s}" ${u.sections.includes(s) ? "checked" : ""}> ${SEC_NAME[s]}</label>`).join("")}
+    <div class="meal-h" style="margin:8px 0 6px">Members can change</div>
+    ${SEC_LIST.map(s => `<label class="switch-row" style="padding:8px 0"><b style="font-weight:600">${SEC_NAME[s]}</b><input type="checkbox" class="switch" data-us="${s}" ${u.sections.includes(s) ? "checked" : ""}></label>`).join("")}
     <p class="tip">Unit heads can always post announcements.</p><div class="warn" id="un-w"></div>
     <div class="sheet-f">${isNew ? "" : `<button class="del" id="un-rm">Remove unit</button>`}<button class="btn ghost" id="un-c">Cancel</button><button class="btn primary" id="un-ok">${isNew ? "Add" : "Save"}</button></div>`);
   d.querySelector("#un-k").onchange = e => { if (!isNew) return; const s = KIND_SEC[e.target.value] || []; d.querySelectorAll("[data-us]").forEach(c => { c.checked = s.includes(c.dataset.us); }); };
@@ -271,6 +321,7 @@ document.addEventListener("click", e => {
   if (t.dataset.pp) editPerson(t.dataset.pp);
   else if (t.dataset.unit) editUnit(t.dataset.unit);
   else if (t.id === "pp-add") addPeople();
+  else if (t.id === "pp-one") addOne();
   else if (t.id === "unit-add") editUnit(null);
   else if (t.id === "team-retry") { TEAM_ERR = false; render(); }
 });

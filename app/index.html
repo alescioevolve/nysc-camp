@@ -305,6 +305,7 @@ body.on-sports #install{display:none}
 .fx .sc{font-size:13px;font-weight:700;color:var(--green-2);margin-top:2px}
 
 /* Feedback + footer */
+.kd{margin:0 2px 8px;padding:9px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:14px;color:var(--muted)}.kd b{color:var(--ink)}.kd.mine{background:#FFF4D6;border-color:#E8C873;color:#5C4300}.kd.mine b{color:#5C4300}
 .alerts{display:flex;align-items:center;gap:14px;margin-top:30px;padding:16px 18px}
 .alerts .ic{font-size:24px;flex:0 0 auto}
 .alerts .tx{flex:1;min-width:0}.alerts .tx b{display:block;font-size:15px;font-weight:700}.alerts .tx span{font-size:13.5px;color:var(--muted);line-height:1.4}
@@ -663,6 +664,8 @@ function dayHTML(date, n){
   const menu = MENU[wd(date)];
   let h = `<div class="sec-h"><h3>${isLive ? "Today's food" : "Food · " + longDate(date)}</h3>
         ${!isLive ? `<button data-today>Back to today</button>` : ""}</div>`;
+  const kd = (CAMP.roster || {})[date];
+  if (kd) h += `<div class="kd ${kd === myP ? "mine" : ""}">🍳 ${kd === myP ? `<b>Your platoon (${esc(kd)}) is on kitchen duty${isLive ? " today" : ""}</b>` : `Kitchen duty: <b>Platoon ${esc(kd)}</b>`}</div>`;
   h += `<section class="card">` + MEALS(date).map(m => {
     const st = mealStatus(date, n, m);
     return `<div class="meal-r"><div class="lab"><b>${m.name}</b>${fmt(m.S)}</div>

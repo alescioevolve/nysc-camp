@@ -70,7 +70,7 @@ input,select,textarea{min-width:0;max-width:100%}
 label.f{display:block;margin-top:8px}
 label.f:first-child{margin-top:0}
 label.f span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 4px 2px}
-input[type=text],input[type=time],input[type=date],input[type=password],input[type=number],select,textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:11px;background:var(--bg);padding:9px 11px;font-size:15.5px;outline:none}
+input[type=text],input[type=tel],input[type=email],input[type=time],input[type=date],input[type=password],input[type=number],select,textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:11px;background:var(--bg);padding:9px 11px;font-size:15.5px;outline:none}
 textarea{min-height:72px;resize:vertical;line-height:1.4}
 input:focus,select:focus,textarea:focus{border-color:var(--green-2);background:var(--surface);box-shadow:0 0 0 3px var(--green-soft)}
 .bad input,.bad{border-color:var(--alert)!important}
@@ -253,7 +253,6 @@ body.locked{overflow:hidden}
     <div id="sbform-in"></div>
     <div class="or"><span>or</span></div>
     <a class="btn full" href="../app/">Open the corps member app</a>
-    <button class="btn ghost full" type="button" id="use-code" style="margin-top:8px">Use a Stream I access code</button>
   </form>
   <form class="lg" id="lgform" autocomplete="on">
     <div class="top">
@@ -427,7 +426,7 @@ function allowed(t){
   if (MODE !== "sb") return !["home", "people", "duties"].includes(t);
   if (!SB.me) return false;
   return t === "home" || t === "act" || t === "acct" || t === "duties"
-    || (t === "time" && SB.canEdit("days")) || (t === "menu" && SB.canEdit("menu"))
+    || (t === "time" && SB.canEdit("days")) || (t === "menu" && (SB.canEdit("menu") || SB.canEdit("roster")))
     || (t === "fix" && (SB.canEdit("fixtures") || SB.canEdit("bestLosers"))) || (t === "st" && SB.canEdit("standings"))
     || (t === "notice" && SB.canAnnounce()) || (t === "people" && SB.canPeople());
 }
@@ -480,6 +479,7 @@ function changes(){
   const dd = DATES.filter(k => !same(work.days[k], base.days[k]));
   if (dd.length) out.push("timetable " + dd.map(nice).join(", "));
   if (!same(work.menu, base.menu)) out.push("menu");
+  if (!same(work.roster || {}, base.roster || {})) out.push("kitchen duty");
   if (!same(work.fixtures, base.fixtures) || !same(work.bestLosers || {}, base.bestLosers || {})) out.push("results and fixtures");
   if (!same(work.announcements, base.announcements)) out.push("announcements");
   if (!same(work.standings, base.standings)) out.push("standings");
@@ -493,7 +493,7 @@ function refreshBar(){
   $("#publish").disabled = !ch.length || !token || !editor;
   document.querySelectorAll(".tab").forEach(t => {
     const k = t.dataset.tab;
-    const dirty = (k==="time" && ch.some(c=>c.startsWith("timetable"))) || (k==="menu" && ch.includes("menu")) || (k==="fix" && ch.includes("results and fixtures")) || (k==="notice" && ch.includes("announcements")) || (k==="st" && ch.includes("standings"));
+    const dirty = (k==="time" && ch.some(c=>c.startsWith("timetable"))) || (k==="menu" && (ch.includes("menu") || ch.includes("kitchen duty"))) || (k==="fix" && ch.includes("results and fixtures")) || (k==="notice" && ch.includes("announcements")) || (k==="st" && ch.includes("standings"));
     t.innerHTML = t.textContent.replace(/\s*$/,"") + (dirty ? '<span class="dot"></span>' : "");
     t.classList.toggle("on", k === tab);
   });
@@ -506,6 +506,7 @@ function setPath(p, v){
   const [kind, a, b, c] = p.split("|");
   if (kind === "d") { const it = work.days[a][+b]; while (it.length <= +c) it.push(""); it[+c] = v; }
   if (kind === "m") work.menu[+a][+b] = v;
+  if (kind === "r") { work.roster = { ...(work.roster || {}) }; if (v) work.roster[a] = v; else delete work.roster[a]; }
   if (kind === "f") {
     const f = work.fixtures[+a];
     f[b] = b === "no" ? (v === "" ? null : +v) : v;
@@ -667,8 +668,21 @@ function toast(text, undo){
 }
 
 /* ── Menu ── */
+let rday = null;
+function rosterHTML(){
+  if (!rday || !DATES.includes(rday)) rday = DATES.includes(lagosToday()) ? lagosToday() : DATES[0];
+  const R = work.roster || {}, B = base.roster || {}, p = R[rday] || "";
+  return `<h2>Kitchen duty</h2><p class="sub">Pick the platoon on kitchen duty each day. Corps members see it with the day's food.</p>
+    ${chips("rday", rday, null, k => (R[k] || "") !== (B[k] || ""))}
+    <div class="card"><label class="f" style="margin:0"><span>${nice(rday)}</span><select data-p="r|${rday}"><option value="">No platoon set</option>
+      ${CAMP.platoons.map(x => `<option value="${x}" ${x === p ? "selected" : ""}>Platoon ${x}</option>`).join("")}</select></label></div>`;
+}
 function menuTab(){
-  return `<h2>Weekly menu</h2><p class="sub">The same menu repeats every week. Each day of camp uses its weekday's row.</p>
+  const showMenu = MODE !== "sb" || SB.canEdit("menu"), showRoster = MODE === "sb" && SB.canEdit("roster");
+  return (showRoster ? rosterHTML() : "") + (showMenu ? menuHTML() : "");
+}
+function menuHTML(){
+  return `<h2 style="margin-top:6px">Weekly menu</h2><p class="sub">The same menu repeats every week. Each day of camp uses its weekday's row.</p>
     ${WD.map((name, w) => `<div class="card"><div class="meal-h">${name}</div>
       ${MEALS.map((m, i) => `<label class="f"><span>${m}</span><input type="text" value="${esc(work.menu[w][i])}" data-p="m|${w}|${i}"></label>`).join("")}
     </div>`).join("")}`;
@@ -932,7 +946,7 @@ function actTab(){
   if (activity === false) return `<h2>Activity</h2><div class="card empty">Couldn't load recent updates. Check your network and try again.<div class="stack"><button class="btn" id="reload-act">Try again</button></div></div>`;
   const when = iso => new Date(iso).toLocaleString("en-GB",{timeZone:"Africa/Lagos",weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true});
   const ini = n => n.split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0,2).toUpperCase();
-  return `<h2>Activity</h2><p class="sub">${MODE === "sb" ? (SB.me && ["director","deputy","coordinator"].includes(SB.me.role) ? "Every change by every official, newest first, with exactly what changed. Names come from each person's own sign-in." : "Your changes, newest first.") : "Every published update, newest first, with exactly what changed. Each update shows the ID of the access code used, so it can be traced even if someone types another person's name."}</p>
+  return `<h2>Activity</h2><p class="sub">${MODE === "sb" ? (SB.me && ["admin","director","deputy","coordinator"].includes(SB.me.role) ? "Every change by every official, newest first, with exactly what changed. Names come from each person's own sign-in." : "Your changes, newest first.") : "Every published update, newest first, with exactly what changed. Each update shows the ID of the access code used, so it can be traced even if someone types another person's name."}</p>
     <div class="card">${activity.length ? activity.map(a => `<div class="act"><span class="avatar">${esc(ini(a.who))}</span><div class="act-b"><b>${esc(a.who)}</b><p>${esc(when(a.when))}${a.code ? ` · code ${esc(a.code)}` : ""}</p>
       ${a.lines.length ? (a.lines.length > 4
         ? `<ul class="chg">${a.lines.slice(0, 3).map(l => `<li>${esc(l)}</li>`).join("")}</ul><details class="more-chg"><summary>Show ${a.lines.length - 3} more</summary><ul class="chg">${a.lines.slice(3).map(l => `<li>${esc(l)}</li>`).join("")}</ul></details>`
@@ -964,6 +978,7 @@ document.addEventListener("click", async e => {
   if (t.dataset.stAdj !== undefined) { editAdj(+t.dataset.stAdj); return; }
   if (t.hasAttribute("data-st-adj-add")) { editAdj(null); return; }
   if (t.dataset.fday) { fday = t.dataset.fday; render(); return; }
+  if (t.dataset.rday) { rday = t.dataset.rday; render(); return; }
   if (t.hasAttribute("data-add-item")) { editItem(null); return; }
   if (t.hasAttribute("data-add-fix")) { work.fixtures.push({ d: fday, t: "17:00", sport: "Football", no: null, stage: "Round 1", a: "", b: "", note: "", score: "" }); render(); return; }
   if (t.dataset.delFix !== undefined) {
@@ -1049,6 +1064,9 @@ function describe(old, now){
   });
   WD.forEach((d, w) => MEALS.forEach((m, i) => { const a = (old.menu[w] || [])[i], b = (now.menu[w] || [])[i];
     if (a !== b) out.push(`Menu, ${d} ${m.toLowerCase()}: ${q(a)} → ${q(b)}`); }));
+  const RO = old.roster || {}, RN = now.roster || {};
+  [...new Set([...Object.keys(RO), ...Object.keys(RN)])].sort().forEach(k => { if ((RO[k] || "") !== (RN[k] || ""))
+    out.push(`Kitchen duty, ${nice(k)}: ${RN[k] ? "Platoon " + RN[k] : "none"}${RO[k] ? ` (was Platoon ${RO[k]})` : ""}`); });
   const fx = (f, ref) => `${f.sport} match #${f.no ?? "?"} (${resolveW(f.sport, f.a)} v ${resolveW(f.sport, f.b)})`;
   const res = f => f.win === "a" || f.win === "b" ? `${f.sa ?? "–"}–${f.sb ?? "–"}, ${resolveW(f.sport, f[f.win])} wins` : (f.sa !== undefined && f.sa !== "" ? `${f.sa}–${f.sb}` : "no result");
   if (old.fixtures.length === now.fixtures.length) now.fixtures.forEach((f, i) => { const o = old.fixtures[i]; if (same(f, o)) return;

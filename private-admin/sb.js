@@ -6,9 +6,9 @@ window.SB = (() => {
   const on = !!(CFG.supabaseUrl && CFG.supabaseAnon && window.supabase && window.supabase.createClient);
   const db = on ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnon,
     { auth: { persistSession: true, autoRefreshToken: true, storageKey: "camp-sb-auth" } }) : null;
-  const SECTIONS = ["days", "menu", "fixtures", "bestLosers", "standings"];
-  const LEAD = ["director", "deputy"];
-  const ROLE_NAME = { director: "Camp Director", deputy: "Deputy Camp Director", coordinator: "State Coordinator",
+  const SECTIONS = ["days", "menu", "roster", "fixtures", "bestLosers", "standings"];
+  const LEAD = ["admin", "director", "deputy"];
+  const ROLE_NAME = { admin: "App support", director: "Camp Director", deputy: "Deputy Camp Director", coordinator: "State Coordinator",
     unit_head: "Unit head", unit_member: "Unit member", platoon_officer: "Platoon officer", delegate: "Delegate" };
   let me = null, camp = null, unit = null, ver = {};
 
@@ -77,6 +77,7 @@ window.SB = (() => {
   }
   const canAnnounce = () => !!me && (lead() || me.role === "unit_head" || me.role === "platoon_officer");
   const canPeople = () => !!me && (lead() || me.role === "unit_head" || me.role === "coordinator");
+  const canChangeRole = o => !!me && o.id !== me.id && (lead() ? !(o.role === "admin" && me.role !== "admin") && !(o.role === "director" && !["director", "admin"].includes(me.role)) : me.role === "unit_head" && o.unit_id === me.unit_id && ["unit_member", "delegate"].includes(o.role));
   const roleLabel = o => {
     o = o || me; if (!o) return "";
     const r = ROLE_NAME[o.role] || o.role;
@@ -100,7 +101,7 @@ window.SB = (() => {
       db.from("announcements").select("*").eq("camp_id", me.camp_id).order("created_at", { ascending: false }).limit(300)]);
     if (s.error) throw err(s.error); if (a.error) throw err(a.error);
     ver = {};
-    const c = { schema: 1, updatedAt: "", updatedBy: "", days: {}, menu: [], fixtures: [], announcements: [], bestLosers: {}, standings: null };
+    const c = { schema: 1, updatedAt: "", updatedBy: "", days: {}, menu: [], roster: {}, fixtures: [], announcements: [], bestLosers: {}, standings: null };
     dates().forEach(k => { c.days[k] = []; });
     let newest = "";
     for (const r of s.data) {
@@ -127,7 +128,7 @@ window.SB = (() => {
     const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
     const keys = [];
     new Set([...Object.keys(base.days), ...Object.keys(work.days)]).forEach(k => { if (!same(base.days[k] || [], work.days[k] || [])) keys.push("days/" + k); });
-    ["menu", "fixtures", "bestLosers", "standings"].forEach(k => { if (!same(base[k], work[k])) keys.push(k); });
+    ["menu", "roster", "fixtures", "bestLosers", "standings"].forEach(k => { if (!same(base[k] || null, work[k] || null)) keys.push(k); });
     for (const k of keys) {
       const data = k.startsWith("days/") ? work.days[k.slice(5)] : work[k];
       const { data: v, error } = await db.rpc("save_section", { k, d: data, expected: ver[k] || 0, lines: linesFor(k).slice(0, 80) });
@@ -209,6 +210,6 @@ window.SB = (() => {
 
   return { on, db, duties, saveDuty, dutyStatus, pushDuty, get me() { return me; }, get camp() { return camp; }, get unit() { return unit; },
     hasSession, token, sendCode, verify, claim, restore, forget, signOut, isEmail, waEmail, ident,
-    lead, canEdit, canAnnounce, canPeople, roleLabel, ROLE_NAME, SECTIONS,
+    lead, canEdit, canAnnounce, canPeople, canChangeRole, roleLabel, ROLE_NAME, SECTIONS,
     dates, load, signature, publish, activity, people, invite, code, setOfficial, saveUnit, toTs, local };
 })();
