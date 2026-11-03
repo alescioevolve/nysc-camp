@@ -36,7 +36,8 @@ function check(p, me, units) {
   const name = String(p.name || "").trim(), email = String(p.email || "").trim().toLowerCase(), phone = String(p.phone || "").trim();
   const role = String(p.role || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (!name) return { error: "Name missing" };
-  if (!ROLES.includes(role)) return { error: `Unknown role "${p.role || ""}"` };
+  if (!role) return { error: "Add a role, e.g. Unit head or Platoon officer" };
+  if (!ROLES.includes(role)) return { error: `Unknown role "${p.role}"` };
   if (email && !isEmail(email)) return { error: "Email looks wrong" };
   if (!email && phoneDigits(phone).length < 10) return { error: "Needs an email or a phone number" };
   let unit = null;
@@ -56,7 +57,7 @@ function check(p, me, units) {
 }
 
 function endsAt(camp) { // the day after camp closes, 23:59 Lagos time
-  const d = new Date(camp.ends_on + "T22:59:00Z"); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString();
+  const d = new Date(String(camp.ends_on).slice(0, 10) + "T22:59:00Z"); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString();
 }
 
 async function invite(me, people, dry) {

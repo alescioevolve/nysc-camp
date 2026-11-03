@@ -45,6 +45,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
   for (const w of Object.keys(U)) await as(w, 'select claim()');
   ok((await db.query(`select count(*)::int n from officials where user_id is not null`)).rows[0].n === 7, 'all 7 invited officials linked; stranger not');
   ok((await as('stranger', 'select (me()).id')).rows[0].id === null, 'stranger has no access');
+  ok((await as('dir', 'select (claim()).name')).rows[0].name === 'Dir', 'already-linked official is found on a second sign-in');
   ok((await as('old', `select save_section('menu','[]'::jsonb,0)`)).err === 'not_signed_in', 'expired official is locked out');
 
   console.log('content sections');

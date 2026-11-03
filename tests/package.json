@@ -1,0 +1,6 @@
+{
+  "name": "camp-companion-tests",
+  "private": true,
+  "scripts": { "test": "node db.test.js && node officials.test.js && node live.test.js" },
+  "devDependencies": { "@electric-sql/pglite": "0.5.13" }
+}

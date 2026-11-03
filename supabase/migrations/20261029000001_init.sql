@@ -221,7 +221,10 @@ begin
   update public.officials set user_id = auth.uid()
     where user_id is null and email = em and camp_id = (select id from public.camps where active)
     returning * into o;
-  return coalesce(o, public.me());
+  -- Already linked (e.g. created by a bulk invite): look them up instead.
+  -- (coalesce() would keep an all-null row, so test the id.)
+  if o.id is null then o := public.me(); end if;
+  return o;
 end $$;
 
 -- Change someone's role, unit, platoon, scopes or expiry, or deactivate them.

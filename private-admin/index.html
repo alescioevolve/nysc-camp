@@ -243,6 +243,18 @@ body.locked{overflow:hidden}
 <!-- ═══ Sign in ═══ -->
 <section class="login" id="login" hidden>
   <button class="theme" type="button" data-theme-toggle aria-label="Switch light or dark mode"><svg class="moon-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <form class="lg" id="sbform" autocomplete="on" hidden>
+    <div class="top">
+      <img src="../assets/nysc-logo.png" alt="" width="240" height="304">
+      <h1>Camp Admin</h1>
+      <p>Sign in with the email or phone number you were added with</p>
+    </div>
+    <div class="msg" id="smsg" hidden></div>
+    <div id="sbform-in"></div>
+    <div class="or"><span>or</span></div>
+    <a class="btn full" href="../app/">Open the corps member app</a>
+    <button class="btn ghost full" type="button" id="use-code" style="margin-top:8px">Use a Stream I access code</button>
+  </form>
   <form class="lg" id="lgform" autocomplete="on">
     <div class="top">
       <img src="../assets/nysc-logo.png" alt="" width="240" height="304">
@@ -257,6 +269,7 @@ body.locked{overflow:hidden}
     <p class="help">Don't have an access code? Contact the Camp Companion administrator.</p>
     <div class="or"><span>or</span></div>
     <a class="btn full" href="../app/" id="tocorps">Open the corps member app</a>
+    <button class="btn ghost full" type="button" id="use-sb" style="margin-top:8px" hidden>Sign in with email or phone</button>
   </form>
   <p class="foot">Camp Companion · Batch C · Stream II<br>Built by Alescio · Exeli Digital</p>
 </section>
@@ -286,11 +299,13 @@ body.locked{overflow:hidden}
 
   <div id="edit">
     <nav class="tabs" id="tabs">
+      <button class="tab" data-tab="home" hidden>Today</button>
       <button class="tab" data-tab="time">Timetable</button>
       <button class="tab" data-tab="notice">Announcements</button>
       <button class="tab" data-tab="fix">Fixtures &amp; results</button>
       <button class="tab" data-tab="st">Standings</button>
       <button class="tab" data-tab="menu">Menu</button>
+      <button class="tab" data-tab="people" hidden>People</button>
       <button class="tab" data-tab="act">Activity</button>
       <button class="tab" data-tab="acct">Account</button>
     </nav>
@@ -314,6 +329,10 @@ body.locked{overflow:hidden}
 </div>
 
 <script src="../data.js"></script>
+<script src="../config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="sb.js"></script>
+<script src="team.js"></script>
 <script>
 const S = CAMP.SOURCE;
 const API = `https://api.github.com/repos/${S.owner}/${S.repo}/contents/${S.path}`;
@@ -350,7 +369,8 @@ let sha = null;                 // GitHub version of camp.json we are editing
 let base = clone(CAMP.BUILT_IN); // last published copy
 let work = clone(base);         // working copy
 let tab = "time";
-const DATES = Object.keys(base.days).sort();
+let DATES = Object.keys(base.days).sort();
+let MODE = "gh";                 // "gh" = access codes on GitHub (Stream I), "sb" = officials signed in with Supabase
 let day = DATES.includes(lagosToday()) ? lagosToday() : DATES[0];
 let fday = day;
 
@@ -382,7 +402,39 @@ async function gh(method, body){
   });
   return r;
 }
+async function connectSb(){
+  setConn(null);
+  try {
+    base = norm(await SB.load()); sha = "sb:" + SB.signature();
+    DATES = Object.keys(base.days).sort();
+    if (!DATES.includes(day)) day = DATES.includes(lagosToday()) ? lagosToday() : DATES[0];
+    if (!DATES.includes(fday)) fday = day;
+    const draft = JSON.parse(store.get("camp-admin-draft") || "null");
+    if (draft && draft.sha === sha && CAMP.valid(draft.work) && JSON.stringify(draft.work) !== JSON.stringify(base)) {
+      work = norm(draft.work); say("Restored the unsaved changes you made earlier on this phone.", "info");
+    } else { work = clone(base); store.del("camp-admin-draft"); }
+    setConn(true); buildTabs(); render(); refreshBar();
+    return "ok";
+  } catch (e) {
+    setConn(false);
+    return /not_signed_in|JWT|401/.test(e.message || "") ? "denied" : "offline";
+  }
+}
+/* Tabs follow the official's role in Supabase mode */
+function allowed(t){
+  if (MODE !== "sb") return !["home", "people"].includes(t);
+  if (!SB.me) return false;
+  return t === "home" || t === "act" || t === "acct"
+    || (t === "time" && SB.canEdit("days")) || (t === "menu" && SB.canEdit("menu"))
+    || (t === "fix" && (SB.canEdit("fixtures") || SB.canEdit("bestLosers"))) || (t === "st" && SB.canEdit("standings"))
+    || (t === "notice" && SB.canAnnounce()) || (t === "people" && SB.canPeople());
+}
+function buildTabs(){
+  document.querySelectorAll("#tabs .tab").forEach(b => { b.hidden = !allowed(b.dataset.tab); });
+  if (!allowed(tab)) tab = MODE === "sb" ? "home" : "time";
+}
 async function connect(){
+  if (MODE === "sb") return connectSb();
   if (!token) { setConn(false); return "nokey"; }
   setConn(null);
   try {
@@ -682,23 +734,32 @@ function noticeState(a){
   const st = `${a.from} ${a.fromT || "00:00"}`, en = `${a.to || a.from} ${a.toT || "24:00"}`;
   return t < st ? "Scheduled" : t >= en ? "Ended" : "Showing now";
 }
+/* Who an announcement is for. Platoon officers can only post to their own platoon. */
+function audience(cur){
+  const po = MODE === "sb" && SB.me && SB.me.role === "platoon_officer";
+  const opts = po ? [[SB.me.platoon, `Platoon ${SB.me.platoon} only`]] : [["", "Everyone"], ...CAMP.platoons.map(p => [p, `Platoon ${p} only`])];
+  return opts.map(([v, l]) => `<option value="${v}" ${String(cur || "") === v ? "selected" : ""}>${l}</option>`).join("");
+}
 function noticeTab(){
   const list = work.announcements.map((a, i) => ({ a, i })).sort((x,y) => (y.a.postedAt||"").localeCompare(x.a.postedAt||""));
   const opt = v => SIGNS.concat(SIGNS.includes(v) || !v ? [] : [v]).map(o => `<option ${o === (v || "Camp Management") ? "selected" : ""}>${esc(o)}</option>`).join("");
   return `<h2>Announcements</h2><p class="sub">Shown on every corps member's app from the start to the end time. Leave the times empty to show all day. Urgent ones show in red above everything else and can't be dismissed.</p>
     <button class="btn full primary" data-add-notice style="margin-bottom:12px">+ New announcement</button>
     ${list.length ? "" : `<div class="card empty">No announcements yet.</div>`}
-    ${list.map(({ a, i }) => `<div class="card ${a.urgent?"urgent-on":""}">
-      <div class="it-head"><b>${noticeState(a)}${a.by?` · by ${esc(a.by)}`:""}</b><button class="del" data-del-notice="${i}">Delete</button></div>
+    ${list.map(({ a, i }) => { const mine = MODE !== "sb" || SB.lead() || a.own || !base.announcements.some(b => b.id === a.id);
+      return `<div class="card ${a.urgent?"urgent-on":""}"><fieldset ${mine ? "" : "disabled"} style="border:0;padding:0;margin:0;min-width:0">
+      <div class="it-head"><b>${noticeState(a)}${a.by?` · by ${esc(a.by)}`:""}${a.platoon ? ` · Platoon ${esc(a.platoon)} only` : ""}${mine ? "" : " · posted by another official"}</b>${mine ? `<button class="del" data-del-notice="${i}">Delete</button>` : ""}</div>
       <label class="f"><span>Title</span><input type="text" value="${esc(a.title)}" data-p="a|${i}|title" placeholder="e.g. Lecture moved to the Auditorium"></label>
       <label class="f"><span>Message</span><textarea data-p="a|${i}|body" placeholder="Details corps members need to know">${esc(a.body)}</textarea></label>
-      <label class="f"><span>Posted as</span><select data-p="a|${i}|sign">${opt(a.sign)}</select></label>
+      ${MODE === "sb" ? `<label class="f"><span>Who sees it</span><select data-p="a|${i}|platoon">${audience(a.platoon)}</select></label>`
+        : `<label class="f"><span>Posted as</span><select data-p="a|${i}|sign">${opt(a.sign)}</select></label>`}
       <div class="row"><label class="f"><span>Starts</span><input type="date" value="${esc(a.from)}" data-p="a|${i}|from"></label>
         <label class="f"><span>at (optional)</span><input type="time" value="${esc(a.fromT || "")}" data-p="a|${i}|fromT"></label></div>
       <div class="row"><label class="f"><span>Ends</span><input type="date" value="${esc(a.to)}" data-p="a|${i}|to"></label>
         <label class="f"><span>at (optional)</span><input type="time" value="${esc(a.toT || "")}" data-p="a|${i}|toT"></label></div>
       <label class="check"><input type="checkbox" ${a.urgent?"checked":""} data-p="a|${i}|urgent"> Mark as urgent</label>
-    </div>`).join("")}`;
+      ${MODE === "sb" && CAMP_CFG.vapidPublic && !base.announcements.some(b => b.id === a.id) ? `<label class="check"><input type="checkbox" ${a.notify?"checked":""} data-p="a|${i}|notify"> Also send to phones as a notification</label>` : ""}
+    </fieldset></div>`; }).join("")}`;
 }
 
 /* ── Standings ── */
@@ -814,6 +875,15 @@ function editAdj(i){
 
 /* ── Account ── */
 function acctTab(){
+  if (MODE === "sb") return `<h2>Account</h2><p class="sub">You're signed in on this phone.</p>
+    <div class="card acct"><span class="avatar">${esc($("#whoav").textContent)}</span><div><b>${esc(SB.me.name)}</b><span>${esc(SB.roleLabel())}${SB.unit ? " · " + esc(SB.unit.name) : ""}</span></div></div>
+    <div class="card"><div class="meal-h">Your access</div><p class="tip">Ends ${new Date(SB.me.expires_at).toLocaleDateString("en-GB",{timeZone:"Africa/Lagos",day:"numeric",month:"long",year:"numeric"})}, after camp closes. Everything you change is recorded under your name.</p></div>
+    <div class="card"><div class="meal-h">Latest version</div><p class="tip">Load what other officials have published since you opened this page.</p>
+      <div class="stack"><button class="btn" id="reload">Load the latest version</button></div></div>
+    <div class="card"><div class="meal-h">Backup</div><p class="tip">Keep a copy of everything on this phone.</p>
+      <div class="stack"><button class="btn" id="dl">Download a copy</button></div></div>
+    <div class="card"><div class="meal-h">Security</div><p class="tip">If you lose this phone, tell the Deputy Camp Director so your access can be removed.</p>
+      <div class="stack"><button class="btn" id="signout" style="color:var(--alert)">Sign out of this phone</button></div></div>`;
   if (!codeId && token) makeCodeId().then(() => { if (tab === "acct") render(); });
   return `<h2>Account</h2><p class="sub">You're signed in on this phone.</p>
     <div class="card acct"><span class="avatar">${esc($("#whoav").textContent)}</span><div><b>${esc(editor)}</b><span>Your name appears on every update you publish.</span></div></div>
@@ -834,6 +904,11 @@ function acctTab(){
 /* ── Activity: recent published updates ── */
 let activity = null;
 async function loadActivity(){
+  if (MODE === "sb") {
+    try { activity = (await SB.activity()).map(a => ({ who: a.actor_name || "System", when: a.at, lines: a.lines || [], what: `${a.action} ${a.target || ""}`, code: "" })); }
+    catch (e) { activity = false; }
+    if (tab === "act") render(); return;
+  }
   try {
     const r = await fetch(`https://api.github.com/repos/${S.owner}/${S.repo}/commits?path=${S.path}&per_page=50&t=${Date.now()}`,
       { cache: "no-store", headers: { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" } });
@@ -853,7 +928,7 @@ function actTab(){
   if (activity === false) return `<h2>Activity</h2><div class="card empty">Couldn't load recent updates. Check your network and try again.<div class="stack"><button class="btn" id="reload-act">Try again</button></div></div>`;
   const when = iso => new Date(iso).toLocaleString("en-GB",{timeZone:"Africa/Lagos",weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true});
   const ini = n => n.split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0,2).toUpperCase();
-  return `<h2>Activity</h2><p class="sub">Every published update, newest first, with exactly what changed. Each update shows the ID of the access code used, so it can be traced even if someone types another person's name.</p>
+  return `<h2>Activity</h2><p class="sub">${MODE === "sb" ? (SB.me && ["director","deputy","coordinator"].includes(SB.me.role) ? "Every change by every official, newest first, with exactly what changed. Names come from each person's own sign-in." : "Your changes, newest first.") : "Every published update, newest first, with exactly what changed. Each update shows the ID of the access code used, so it can be traced even if someone types another person's name."}</p>
     <div class="card">${activity.length ? activity.map(a => `<div class="act"><span class="avatar">${esc(ini(a.who))}</span><div class="act-b"><b>${esc(a.who)}</b><p>${esc(when(a.when))}${a.code ? ` · code ${esc(a.code)}` : ""}</p>
       ${a.lines.length ? (a.lines.length > 4
         ? `<ul class="chg">${a.lines.slice(0, 3).map(l => `<li>${esc(l)}</li>`).join("")}</ul><details class="more-chg"><summary>Show ${a.lines.length - 3} more</summary><ul class="chg">${a.lines.slice(3).map(l => `<li>${esc(l)}</li>`).join("")}</ul></details>`
@@ -863,7 +938,8 @@ function actTab(){
 
 function render(){
   const m = $("#main");
-  m.innerHTML = tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "st" ? stTab() : tab === "notice" ? noticeTab() : tab === "act" ? actTab() : acctTab();
+  if (!allowed(tab)) tab = MODE === "sb" ? "home" : "time";
+  m.innerHTML = tab === "home" ? homeTab() : tab === "people" ? peopleTab() : tab === "time" ? timeTab() : tab === "menu" ? menuTab() : tab === "fix" ? fixTab() : tab === "st" ? stTab() : tab === "notice" ? noticeTab() : tab === "act" ? actTab() : acctTab();
   if (tab === "time") {
     const c = m.querySelector(".chip.on"); if (c) c.scrollIntoView({ inline: "center", block: "nearest" });
     if (jumpNow) { jumpNow = false; const r = m.querySelector("[data-now]"); if (r) setTimeout(() => r.scrollIntoView({ block: "center", behavior: "smooth" }), 60); }
@@ -875,7 +951,7 @@ function render(){
 /* ── Clicks ── */
 document.addEventListener("click", async e => {
   const t = e.target.closest("button, label.btn"); if (!t) return;
-  if (t.dataset.tab) { tab = t.dataset.tab; if (tab === "time") jumpNow = true; if (view !== "dashboard") setView("dashboard"); render(); window.scrollTo({ top: 0 }); return; }
+  if (t.dataset.tab) { if (!allowed(t.dataset.tab)) return; tab = t.dataset.tab; if (tab === "time") jumpNow = true; if (view !== "dashboard") setView("dashboard"); render(); window.scrollTo({ top: 0 }); return; }
   if (t.dataset.day) { day = t.dataset.day; jumpNow = true; render(); return; }
   if (t.hasAttribute("data-jump")) { const r = $("[data-now]"); if (r) r.scrollIntoView({ block: "center", behavior: "smooth" }); else toast("Nothing is on right now."); return; }
   if (t.dataset.edit !== undefined) { editItem(+t.dataset.edit); return; }
@@ -894,7 +970,9 @@ document.addEventListener("click", async e => {
   }
   if (t.hasAttribute("data-add-notice")) {
     const today = DATES.includes(lagosToday()) ? lagosToday() : DATES[0];
-    work.announcements.push({ id: "n" + Date.now(), title: "", body: "", urgent: false, sign: "Camp Management", from: today, fromT: "", to: today, toT: "", postedAt: new Date().toISOString(), by: editor });
+    work.announcements.push(MODE === "sb"
+      ? { id: "n" + Date.now(), title: "", body: "", urgent: false, platoon: SB.me.role === "platoon_officer" ? SB.me.platoon : "", from: today, fromT: "", to: today, toT: "", postedAt: new Date().toISOString(), by: editor, own: true }
+      : { id: "n" + Date.now(), title: "", body: "", urgent: false, sign: "Camp Management", from: today, fromT: "", to: today, toT: "", postedAt: new Date().toISOString(), by: editor });
     render(); document.querySelector('[data-p$="|title"]').focus(); return;
   }
   if (t.dataset.delNotice !== undefined) {
@@ -920,6 +998,7 @@ document.addEventListener("click", async e => {
   if (t.id === "reload-act") { activity = null; render(); return; }
   if (t.id === "signout") {
     if (changes().length && !(await ask("Sign out anyway?", "You have unpublished changes. They stay saved on this phone.", "Sign out"))) return;
+    if (MODE === "sb") { await SB.signOut(); SB.forget(); MODE = "gh"; }
     token = ""; store.del("camp-admin-token"); sess.del("camp-admin-token"); location.hash = "#login"; route(); return;
   }
   if (t.id === "dl") {
@@ -1078,6 +1157,7 @@ async function publish(attempt = 0){
   const badN = work.announcements.find(a => !String(a.title || "").trim() || `${a.to || a.from} ${a.toT || "24:00"}` <= `${a.from} ${a.fromT || "00:00"}`);
   if (badN) { tab = "notice"; render(); say(`Check the announcement "${badN.title || "Untitled"}". It needs a title, and its end must be after its start.`, "err"); return; }
   if (work.standings.events.some(e => !String(e.name || "").trim())) { tab = "st"; render(); say("Every standings event needs a name.", "err"); return; }
+  if (MODE === "sb") return publishSb(attempt);
   const btn = $("#publish"); btn.disabled = true; btn.textContent = "Publishing…";
   const next = clone(work); next.updatedAt = new Date().toISOString(); next.updatedBy = editor;
   let retry = false;
@@ -1115,6 +1195,43 @@ async function publish(attempt = 0){
   } finally { btn.textContent = "Publish"; refreshBar(); if (retry) publish(attempt + 1); }
 }
 
+async function publishSb(attempt){
+  const btn = $("#publish"); btn.disabled = true; btn.textContent = "Publishing…";
+  let retry = false;
+  try {
+    const linesFor = k => { const tmp = clone(base); if (k.startsWith("days/")) tmp.days[k.slice(5)] = work.days[k.slice(5)]; else tmp[k] = work[k]; return describe(base, tmp); };
+    const r = await SB.publish(base, work, linesFor);
+    if (r.conflict) {
+      const theirs = norm(await SB.load());
+      const { merged, clashes } = combine(base, work, theirs);
+      base = theirs; sha = "sb:" + SB.signature(); work = merged; render();
+      if (clashes.length) { say(`Another official published while you were editing. Your other changes are combined with theirs, but you both changed ${clashes.join(", ")}. Their version is kept there. Check it, redo your change if it's still needed, then tap Publish.`, "err"); return; }
+      if (!changes().length) { say("Another official published the same changes. Nothing else to publish.", "ok"); return; }
+      if (attempt < 2) { retry = true; return; }
+      say("Other officials keep publishing at the same time. Your changes are combined and kept here. Tap Publish again.", "err"); return;
+    }
+    const sent = await notifyPhones(r.created.filter(a => a.notify));
+    base = norm(await SB.load()); work = clone(base); sha = "sb:" + SB.signature();
+    store.del("camp-admin-draft"); activity = null;
+    say(`Published. Corps members will see the update within about a minute.${sent ? ` Notification sent to ${sent} phone${sent === 1 ? "" : "s"}.` : ""}`, "ok");
+  } catch (e) {
+    const m = e.message || "";
+    say(/not_allowed/.test(m) ? "One of these changes is outside what your role can change. Nothing else was lost: your changes are still on this phone."
+      : /not_signed_in|JWT/.test(m) ? "Your sign-in has ended. Sign in again. Your changes are still on this phone."
+      : /bad_times/.test(m) ? "An announcement ends before it starts. Check the times." : "Couldn't publish. Your changes are still on this phone. Check your network and try again.", "err");
+  } finally { btn.textContent = "Publish"; refreshBar(); if (retry) publish(attempt + 1); }
+}
+/* Push notifications for new announcements that asked for one (step 3) */
+async function notifyPhones(list){
+  if (!list.length || !CAMP_CFG.vapidPublic) return 0;
+  let n = 0;
+  for (const a of list) {
+    try { const r = await fetch("../api/push", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + await SB.token() },
+      body: JSON.stringify({ announcement: a.id }) }); const j = await r.json(); n += j.sent || 0; } catch (e) {}
+  }
+  return n;
+}
+
 window.addEventListener("beforeunload", e => { if (changes().length) { e.preventDefault(); e.returnValue = ""; } });
 
 /* ── Views: sign in → dashboard, and the corps member view ── */
@@ -1136,6 +1253,8 @@ function route(){
   const signedIn = !!token && !!editor;
   if (!signedIn) {
     $("#dash").hidden = true; $("#login").hidden = false;
+    $("#sbform").hidden = !SB.on; $("#lgform").hidden = SB.on; $("#use-sb").hidden = !SB.on;
+    if (SB.on) paintSbLogin();
     $("#lname").value = editor; if (location.hash !== "#login") history.replaceState(null, "", "#login");
     return;
   }
@@ -1174,7 +1293,22 @@ $("#lgform").addEventListener("submit", async e => {
 /* ── Installable as its own "Camp Admin" icon ── */
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("../sw.js", { scope: "../" }).catch(() => {});
 
+/* ── Signed in with Supabase ── */
+async function afterSbSignIn(){
+  MODE = "sb"; token = "sb"; editor = SB.me.name; store.set("camp-admin-name", editor);
+  location.hash = "#dashboard"; route(); tab = "home"; buildTabs(); render();
+  const r = await connect();
+  if (r === "offline") say("You're offline. You can keep editing, and publish when you have signal.", "info");
+}
+$("#sbform").addEventListener("submit", sbSubmit);
+
 /* ── Start ── */
+(async () => {
+if (SB.on && await SB.hasSession()) {
+  let me = null; try { me = await SB.claim(); } catch (e) { me = SB.restore(); }
+  if (me) { await afterSbSignIn(); return; }
+  await SB.signOut();
+}
 route();
 if (token && editor) {
   render();
@@ -1183,6 +1317,7 @@ if (token && editor) {
     else if (r === "offline") say("You're offline. You can keep editing, and publish when you have signal.", "info");
   });
 }
+})();
 </script>
 </body>
 </html>
