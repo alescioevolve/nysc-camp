@@ -4,5 +4,5 @@
 window.CAMP_CFG = {
   supabaseUrl: "",
   supabaseAnon: "",
-  vapidPublic: ""      // push notifications; filled when set up
+  vapidPublic: "BF9GTO3n1Ew1LOauLuXgbC-9cosb_OJgk8CqRqURRpLB8ebmynNjtXlOXJULpE9TBq91Jc3u3fWad6SMAlwIgBE"
 };

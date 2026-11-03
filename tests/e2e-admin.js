@@ -12,7 +12,8 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
 (async () => {
   const sb = await create(), db = sb.db;
   const camp = JSON.parse(fs.readFileSync(process.env.CAMP_JSON || '/home/claude/camp-companion-data/camp.json', 'utf8'));
-  await db.exec(`insert into camps (id,name,starts_on,ends_on,active,platoons) values ('c2','Batch C Stream II','2026-11-04','2026-11-24',true,10);
+  await db.exec(`delete from camps;  -- drop the seeded Stream II camp; tests make their own
+    insert into camps (id,name,starts_on,ends_on,active,platoons) values ('c2','Batch C Stream II','2026-11-04','2026-11-24',true,10);
     insert into units (id,camp_id,name,kind,sections) values ('22222222-0000-0000-0000-000000000001','c2','Sports','sports','{fixtures,bestLosers,standings}'),
       ('22222222-0000-0000-0000-000000000002','c2','Kitchen','kitchen','{menu}');
     insert into auth.users (email) values ('musa@x.ng'),('ada@x.ng');

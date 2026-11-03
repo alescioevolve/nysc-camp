@@ -21,6 +21,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ '
               po4: '11111111-0000-0000-0000-000000000005', del: '11111111-0000-0000-0000-000000000006',
               old: '11111111-0000-0000-0000-000000000007', stranger: '11111111-0000-0000-0000-000000000008' };
   await db.exec(`
+    delete from camps;  -- drop the seeded Stream II camp; tests make their own
     insert into camps (id,name,starts_on,ends_on,active) values ('c2','Stream II','2026-11-04','2026-11-24',true), ('c1','Stream I','2026-09-30','2026-10-20',false);
     insert into units (id,camp_id,name,kind,sections) values
       ('22222222-0000-0000-0000-000000000001','c2','Sports','sports','{fixtures,bestLosers,standings}'),
